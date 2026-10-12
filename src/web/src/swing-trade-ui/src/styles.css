@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/forms";
+
+@source "./**/*.{ts,tsx,js,jsx,html}";
+@source "../index.html";
+
+@theme {
+  /* Brand */
+  --color-brand: #1d4ed8;
+  --color-brand-fg: #ffffff;
+  --color-brand-hover: #1e40af;
+  --color-brand-tint: rgba(29, 78, 216, 0.07);
+
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f6f8;
+  --color-surface-sunken: #eef0f3;
+  --color-surface-inverse: #0f1115;
+
+  /* Content */
+  --color-content: #14171c;
+  --color-content-muted: #5b6470;
+  --color-content-inverse: #f5f6f8;
+
+  /* Borders */
+  --color-border: #e3e6eb;
+  --color-border-strong: #c9ced6;
+
+  /* Signal colours: green for a pullback candidate, red for Avoid and warnings, neutral for everything else. */
+  --color-good: #15803d;
+  --color-good-tint: #dcfce7;
+  --color-bad: #b91c1c;
+  --color-bad-tint: #fee2e2;
+  --color-warn: #b45309;
+  --color-warn-tint: #fef3c7;
+  --color-neutral-tint: #e5e7eb;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1rem;
+}
+
+html,
+body {
+  background-color: var(--color-surface-muted);
+  color: var(--color-content);
+  font-family: var(--font-sans);
+}
+
+html body {
+  margin: 0;
+  padding: 0;
+}
+
+.font-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- PrimeReact surface overrides (lighter chrome) --- */
+.p-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: none;
+}
+
+.p-card .p-card-body {
+  padding: 1rem;
+}
+
+.p-card .p-card-content {
+  padding: 0;
+}
+
+.p-datatable .p-datatable-tbody > tr.row-bad {
+  background-color: var(--color-bad-tint);
+}
+
+.p-datatable .p-datatable-tbody > tr.row-warn {
+  background-color: var(--color-warn-tint);
+}
+
+.p-datatable .p-datatable-tbody > tr.row-clickable {
+  cursor: pointer;
+}
+
+/* Keyboard focus must stay visible on the chip-style toggles. */
+.chip-toggle:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}

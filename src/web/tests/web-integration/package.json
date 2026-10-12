@@ -1,0 +1,18 @@
+{
+  "name": "swing-trade-web-integration",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.14.1",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.0"
+  }
+}

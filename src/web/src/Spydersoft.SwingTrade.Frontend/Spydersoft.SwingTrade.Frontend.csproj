@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<UserSecretsId>swing-trade-frontend</UserSecretsId>
+		<SpaRoot>..\swing-trade-ui\</SpaRoot>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Spydersoft.OidcProxy.Net.OpenIdConnect" />
+		<PackageReference Include="Spydersoft.Platform.Hosting" />
+	</ItemGroup>
+
+	<!--
+	Builds the SPA with yarn (same approach as PitStop: the JS project system is not used) and folds its output into
+	this project's output. SkipSpaBuild=true skips both targets, for example when the AppHost already runs the Vite
+	dev server or a unit-test run only needs the .NET build.
+	-->
+	<Target Name="BuildSpa" BeforeTargets="Build" Condition="'$(SkipSpaBuild)' != 'true'">
+		<Exec Command="yarn install" WorkingDirectory="$(SpaRoot)" Condition="!Exists('$(SpaRoot)node_modules') And !Exists('$(MSBuildThisFileDirectory)..\..\..\..\node_modules')" />
+		<Exec Command="yarn build" WorkingDirectory="$(SpaRoot)" />
+	</Target>
+
+	<!--
+	MapFallbackToFile needs wwwroot/index.html on disk for anything driven by `dotnet run` (the Playwright suite boots
+	the AppHost), so the build output is copied into the physical wwwroot/ here. The Web SDK's default
+	`Content Include="wwwroot/**"` then picks the files up for publish; a second publish-time copy would fail with
+	NETSDK1152 (duplicate publish output).
+	-->
+	<Target Name="CopySpaToWwwroot" AfterTargets="Build" Condition="'$(SkipSpaBuild)' != 'true'">
+		<ItemGroup>
+			<SpaBuildFiles Include="$(SpaRoot)dist\**" />
+		</ItemGroup>
+		<Copy SourceFiles="@(SpaBuildFiles)" DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\%(RecursiveDir)" SkipUnchangedFiles="true" />
+	</Target>
+
+</Project>

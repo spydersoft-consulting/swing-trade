@@ -1,0 +1,14 @@
+node_modules
+dist
+output
+coverage
+wwwroot
+test-results
+playwright-report
+.yarn
+yarn.lock
+bin
+obj
+TestResults
+src/api/openapi
+src/api/tests/api-integration/wiremock

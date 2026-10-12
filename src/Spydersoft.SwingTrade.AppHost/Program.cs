@@ -7,6 +7,8 @@ const int PostgresPort = 8110;
 const int ApiPort = 8180;
 const int MockOidcPort = 8210;
 const int WireMockPort = 8310;
+const int WebPort = 8190;
+const int VitePort = 5290;
 
 var builder = DistributedApplication.CreateBuilder(args);
 var isTesting = builder.Environment.EnvironmentName == TestingEnvironmentName;
@@ -47,7 +49,9 @@ if (useMockOidc)
         .WithEnvironment("CLIENTS_CONFIGURATION_INLINE", MockOidc.ClientsJson())
         .WithEnvironment("USERS_CONFIGURATION_INLINE", MockOidc.UsersJson())
         .WithEnvironment("API_SCOPES_INLINE", MockOidc.ApiScopesJson())
-        .WithEnvironment("API_RESOURCES_INLINE", MockOidc.ApiResourcesJson());
+        .WithEnvironment("API_RESOURCES_INLINE", MockOidc.ApiResourcesJson())
+        // The IdP session cookies default to SameSite=None, which browsers drop without Secure; the mock is plain http, so login would loop.
+        .WithEnvironment("SERVER_OPTIONS_INLINE", MockOidc.ServerOptionsJson());
 }
 
 // --- API ---
@@ -88,6 +92,59 @@ if (isTesting)
        .WithEnvironment("MarketData__Alpaca__BaseUrl", "http://localhost:" + WireMockPort)
        .WithEnvironment("MarketData__Tiingo__BaseUrl", "http://localhost:" + WireMockPort)
        .WaitFor(mockMarketData);
+}
+
+// --- Web: the BFF (OidcProxy) that serves the SPA and forwards /api/v1 with the user's access token, plus Vite ---
+
+string webClientId, webClientSecret, webAuthority;
+if (mockOidc is not null)
+{
+    webClientId = MockOidc.WebClientId;
+    webClientSecret = MockOidc.WebClientSecret;
+    webAuthority = "http://localhost:" + MockOidcPort;
+}
+else
+{
+    webClientId = builder.Configuration["OidcProxy:ClientId"]
+        ?? throw new InvalidOperationException("OidcProxy:ClientId is not set in user secrets.");
+    webClientSecret = builder.Configuration["OidcProxy:ClientSecret"]
+        ?? throw new InvalidOperationException("OidcProxy:ClientSecret is not set in user secrets.");
+    webAuthority = "https://auth.mattgerega.net";
+}
+
+var frontendProjectDir = Path.GetFullPath(
+    Path.Combine(builder.Environment.ContentRootPath, "..", "web", "src", "Spydersoft.SwingTrade.Frontend"));
+
+var web = builder.AddProject<Projects.Spydersoft_SwingTrade_Frontend>("web", launchProfileName: "http")
+    .WithEndpoint("http", e => { e.Port = WebPort; e.TargetPort = WebPort; e.IsProxied = false; })
+    .WithEnvironment("ASPNETCORE_URLS", "http://localhost:" + WebPort)
+    .WithEnvironment("ASPNETCORE_CONTENTROOT", frontendProjectDir)
+    .WithEnvironment("OidcProxySettings__Oidc__Authority", webAuthority)
+    .WithEnvironment("OidcProxySettings__Oidc__ClientId", webClientId)
+    .WithEnvironment("OidcProxySettings__Oidc__ClientSecret", webClientSecret)
+    .WithEnvironment("OidcProxySettings__ReverseProxy__Clusters__swingTradeApi__Destinations__destination1__Address", "http://localhost:" + ApiPort + "/")
+    .WithEnvironment("Telemetry__Log__Type", "otlp")
+    .WithEnvironment("Telemetry__Metrics__Type", "otlp")
+    .WithEnvironment("Telemetry__Trace__Type", "otlp")
+    .WithHttpHealthCheck("/livez", endpointName: "http")
+    .WaitFor(api);
+
+if (mockOidc is not null)
+{
+    // OidcProxy.Net rewrites its own redirect_uri to https unless told otherwise; the mock IdP and the BFF are plain http.
+    web.WithEnvironment("OidcProxySettings__AlwaysRedirectToHttps", "false");
+    web.WaitFor(mockOidc);
+}
+
+if (!isTesting)
+{
+    // The Vite dev server (hot reload). It proxies /api, /oauth2 and the probes to the BFF, so sign-in works from
+    // http://localhost:5290 as well (that redirect URI is registered for the mock client). Testing serves the built
+    // SPA from the BFF instead, so the suite never depends on a dev server.
+    builder.AddViteApp("swing-trade-ui", "../web/src/swing-trade-ui")
+        .WithYarn()
+        .WithEnvironment("BFF_URL", "http://localhost:" + WebPort)
+        .WithEndpoint("http", e => { e.Port = VitePort; e.IsProxied = false; });
 }
 
 var app = builder.Build();

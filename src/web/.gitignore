@@ -1,0 +1,31 @@
+# Node / Yarn
+node_modules/
+dist/
+output/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.nupkg
+*.snupkg
+
+# .NET secrets (environment-specific appsettings with real credentials)
+appsettings.Production.json
+appsettings.Staging.json
+secrets.json
+
+# Dev certs
+*.pem
+*.key
+
+# Logs
+*.log
+wwwroot/

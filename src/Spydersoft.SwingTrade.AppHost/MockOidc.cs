@@ -14,6 +14,10 @@ internal static class MockOidc
     // Issues one-second access tokens so a spec can wait for a genuinely expired token (the Testing API runs with no clock skew).
     public const string ShortLivedClientId = "swingtrade-api-test-short";
 
+    /// <summary>The confidential authorization-code client the web BFF (OidcProxy) signs in with. Allowed to request the swingtrade scope, so the access token it holds carries aud and the role claim.</summary>
+    public const string WebClientId = "swingtrade-web-test";
+    public const string WebClientSecret = "swingtrade-web-test-secret";
+
     public static string ClientsJson() => $$"""
     [
       {
@@ -30,8 +34,28 @@ internal static class MockOidc
         "AllowedScopes": ["openid", "profile", "swingtrade"],
         "AccessTokenLifetime": 1,
         "RequireClientSecret": true
+      },
+      {
+        "ClientId": "{{WebClientId}}",
+        "ClientSecrets": ["{{WebClientSecret}}"],
+        "AllowedGrantTypes": ["authorization_code"],
+        "AllowedScopes": ["openid", "profile", "email", "offline_access", "swingtrade"],
+        "RedirectUris": ["http://localhost:8190/oauth2/callback", "http://localhost:5290/oauth2/callback"],
+        "PostLogoutRedirectUris": ["http://localhost:8190/", "http://localhost:5290/"],
+        "RequireConsent": false,
+        "RequirePkce": false,
+        "AllowOfflineAccess": true
       }
     ]
+    """;
+
+    public static string ServerOptionsJson() => """
+    {
+      "Authentication": {
+        "CookieSameSiteMode": "Lax",
+        "CheckSessionCookieSameSiteMode": "Lax"
+      }
+    }
     """;
 
     public static string UsersJson() => """

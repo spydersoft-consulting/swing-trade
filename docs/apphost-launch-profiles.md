@@ -1,6 +1,6 @@
 # AppHost launch profiles
 
-`src/Spydersoft.SwingTrade.AppHost` (`Properties/launchSettings.json`) is the Aspire AppHost. It has two launch profiles. There is no frontend resource until M6, and no `Remote` profile: the API is the only app and the real identity provider is reached by running the API directly with `Auth:Authority` left at its default.
+`src/Spydersoft.SwingTrade.AppHost` (`Properties/launchSettings.json`) is the Aspire AppHost. It has two launch profiles and no `Remote` profile: the real identity provider is reached by running the API (and the web BFF) directly with the authority left at its default. Besides Postgres, the API and the mock services it runs the web BFF (`Spydersoft.SwingTrade.Frontend`, which serves the React app and proxies `/api/v1`) and, outside `Testing`, the Vite dev server.
 
 A container runtime is required (Docker, or podman with `ASPIRE_CONTAINER_RUNTIME=podman`).
 
@@ -9,6 +9,8 @@ Fixed host ports (chosen so this AppHost and PitStop's can run side by side):
 | Resource | Port |
 | --- | --- |
 | API (http) | 8180 |
+| Web BFF (http) | 8190 |
+| Vite dev server (not in `Testing`) | 5290 |
 | Postgres | 8110 |
 | mock OIDC | 8210 |
 | WireMock (Testing only) | 8310 |
@@ -19,6 +21,7 @@ Fixed host ports (chosen so this AppHost and PitStop's can run side by side):
 Interactive development with no external dependencies and no secrets.
 
 - `DOTNET_ENVIRONMENT=Development`, so `appsettings.Development.json` applies: market data uses the deterministic **fake** provider.
+- The web BFF is on http://localhost:8190 and Vite (hot reload) on http://localhost:5290, which proxies `/api`, `/oauth2` and the probes to the BFF. Sign in with a persona below (for example `trader`). The first run builds the SPA (`yarn install` and `yarn build` run from the BFF project; `-p:SkipSpaBuild=true` skips that).
 - `UseMockOidc=true` starts the `ghcr.io/soluto/oidc-server-mock` container (`mock-oidc`) and points the API at it (`Auth__Authority=http://localhost:8210`). The five persona users are the same as in Testing (see below), so you can mint a token and call the API from curl or a REST client.
 - Postgres keeps a data volume, so state survives restarts.
 
@@ -37,7 +40,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8180/api/v1/dashboard
 
 ## `Testing`
 
-Used by `src/api/tests/api-integration/playwright.config.ts` (its `webServer` runs this profile); not normally launched by hand.
+Used by `src/api/tests/api-integration/playwright.config.ts` and `src/web/tests/web-integration/playwright.config.ts` (their `webServer` runs this profile); not normally launched by hand. The BFF serves the built SPA (no Vite) and the web suite signs in through the mock IdP at http://localhost:8190.
 
 - `ASPNETCORE_ENVIRONMENT` and `DOTNET_ENVIRONMENT` are `Testing`, so `appsettings.Testing.json` applies.
 - Postgres has **no** data volume, so every run starts from the seeded database.
@@ -61,7 +64,7 @@ Defined in `src/Spydersoft.SwingTrade.AppHost/MockOidc.cs`.
 
 Whenever the mock OIDC server is on (`Local` and `Testing`), the AppHost passes `Mcp__PublicUrl=http://localhost:8180/mcp` and `Mcp__OwnerSubject=mcponly-1` to the API, so `mcponly` can use `/mcp` and nobody else can. `appsettings.Testing.json` raises `Mcp:RequestsPerMinute` to 1000.
 
-Clients (secret `swingtrade-api-test-secret`, resource-owner password grant): `swingtrade-api-test` (normal lifetime) and `swingtrade-api-test-short` (one-second access tokens, used to get a genuinely expired token). Scope `swingtrade` is the API resource the API requires as audience and carries the `role` claim; scope `other-api` is a second resource, used to mint a validly signed token with the wrong audience.
+Clients (secret `swingtrade-api-test-secret`, resource-owner password grant): `swingtrade-api-test` (normal lifetime) and `swingtrade-api-test-short` (one-second access tokens, used to get a genuinely expired token). The web BFF signs in as `swingtrade-web-test` (secret `swingtrade-web-test-secret`, authorization code, redirects `http://localhost:8190/oauth2/callback` and `http://localhost:5290/oauth2/callback`, scopes `openid profile email offline_access swingtrade`); its access token carries `aud: swingtrade` and the user's `role` claim, and the BFF forwards it to the API unchanged. Scope `swingtrade` is the API resource the API requires as audience and carries the `role` claim; scope `other-api` is a second resource, used to mint a validly signed token with the wrong audience.
 
 ## Postgres password is pinned, not random
 
@@ -75,4 +78,4 @@ If you hit a mismatch, remove the Postgres data volume once (`docker volume ls`,
 
 ## Leftover containers
 
-If a run is killed rather than stopped cleanly, its containers can outlive it and then block the fixed ports on the next run. List and remove them (`docker ps -a` / `podman ps -a`, then `rm -f`) before starting again.
+If a run is killed rather than stopped cleanly (Playwright's `webServer` stops only the `dotnet` process on Windows), its containers can outlive it and then block the fixed ports on the next run. List and remove them (`docker ps -a` / `podman ps -a`, then `rm -f`) before starting again.
