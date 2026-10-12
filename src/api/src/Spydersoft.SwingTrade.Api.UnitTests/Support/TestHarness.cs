@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Spydersoft.SwingTrade.Api.Refresh;
 using Spydersoft.SwingTrade.Api.Services;
 using Spydersoft.SwingTrade.Data;
 using Spydersoft.SwingTrade.Data.Entities;
@@ -24,6 +25,11 @@ internal sealed class TestHarness : IDisposable
         Trades = new TradeService(Db, Settings, Clock);
         Notes = new NoteService(Db);
         Dashboard = new DashboardService(Db, Settings);
+        Calendar = new MarketCalendar(Clock);
+        Watchlist = new WatchlistService(Db, Settings, Trades, Calendar);
+        Bars = new BarService(Db, Clock);
+        Sizer = new SizerService(Db, Settings, Dashboard);
+        Export = new ExportService(Trades, Clock);
     }
 
     public SwingTradeDbContext Db { get; }
@@ -33,6 +39,11 @@ internal sealed class TestHarness : IDisposable
     public TradeService Trades { get; }
     public NoteService Notes { get; }
     public DashboardService Dashboard { get; }
+    public MarketCalendar Calendar { get; }
+    public WatchlistService Watchlist { get; }
+    public BarService Bars { get; }
+    public SizerService Sizer { get; }
+    public ExportService Export { get; }
 
     public static async Task<TestHarness> SeededAsync()
     {

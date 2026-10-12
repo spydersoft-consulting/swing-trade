@@ -12,6 +12,22 @@ using Spydersoft.SwingTrade.MarketData;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The OpenAPI document tool (dotnet build -p:GenerateOpenApi=true) builds the host without running it. Give it config that
+// needs no database or telemetry collector. Never applies to a normal run.
+var generatingOpenApi = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+if (generatingOpenApi)
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["ConnectionStrings:swingtrade-db"] = "Host=openapi-generation-only",
+        ["Telemetry:Log:Type"] = "console",
+        ["Telemetry:Metrics:Type"] = "console",
+        ["Telemetry:Trace:Type"] = "console",
+        ["MarketData:Providers:0"] = "fake",
+        ["Refresh:ScheduleEnabled"] = "false"
+    });
+}
+
 builder.AddSpydersoftTelemetry(typeof(Program).Assembly,
     new ConfigurationFunctions
     {
@@ -28,7 +44,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = builder.Configuration["Auth:Authority"];
+        // Both are for the Testing environment only (mock OIDC over http, one-second tokens to prove expiry); defaults are the secure ones.
+        options.RequireHttpsMetadata = builder.Configuration.GetValue("Auth:RequireHttpsMetadata", true);
         options.ApplySwingTradeTokenValidation();
+        if (builder.Configuration.GetValue<int?>("Auth:ClockSkewSeconds") is { } skewSeconds)
+            options.TokenValidationParameters.ClockSkew = TimeSpan.FromSeconds(skewSeconds);
     });
 builder.Services.AddSwingTradeAuthorization();
 
@@ -41,6 +61,10 @@ builder.Services.AddScoped<InstrumentService>();
 builder.Services.AddScoped<TradeService>();
 builder.Services.AddScoped<NoteService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<WatchlistService>();
+builder.Services.AddScoped<BarService>();
+builder.Services.AddScoped<SizerService>();
+builder.Services.AddScoped<ExportService>();
 
 builder.Services.AddMarketData(builder.Configuration);
 builder.Services.AddSingleton<MarketCalendar>();
@@ -57,14 +81,15 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment() && app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<MarketDataOptions>>().Value.Providers.Contains("fake", StringComparer.OrdinalIgnoreCase))
     app.Logger.LogWarning("The fake market data provider is configured outside Development; prices are synthetic.");
 
-using (var scope = app.Services.CreateScope())
+if (!generatingOpenApi)
 {
+    using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<SwingTradeDbContext>();
     await ctx.Database.MigrateAsync();
     await DatabaseSeeder.SeedAsync(ctx, scope.ServiceProvider.GetRequiredService<TimeProvider>());
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     app.MapOpenApi();
 }

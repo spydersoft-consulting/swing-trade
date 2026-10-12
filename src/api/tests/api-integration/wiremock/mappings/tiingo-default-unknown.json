@@ -1,0 +1,13 @@
+{
+  "priority": 10,
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/tiingo/daily/[A-Z0-9.-]+/prices"
+  },
+  "response": {
+    "status": 404,
+    "jsonBody": {
+      "detail": "Not found (canned)"
+    }
+  }
+}

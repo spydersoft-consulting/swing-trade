@@ -1,0 +1,127 @@
+## Build pipeline for swing-trade. Mirrors PitStop's pipeline-ci.yml, trimmed to what exists at M4:
+## the .NET solution (build + unit tests) and the Playwright API integration suite run through the AppHost Testing
+## profile. Docker image publish, Helm chart publish, the helm-config bump and the React UI stages are left commented
+## below until M6 (UI) and M7 (hardening) add the infrastructure they need.
+##
+## TODO (owner, see docs/DECISIONS.md "Open items"): SonarCloud project key/name, the swing-trade-helm-config
+## repository layout, container registry and image names. Placeholders below are marked TODO.
+resources:
+  repositories:
+    - repository: templates
+      type: github
+      endpoint: spydersoft-gh
+      name: spydersoft-consulting/azure-devops-templates
+    # TODO(M7): enable once swing-trade-helm-config has its layout and the pipeline should bump the test environment.
+    # - repository: helmfileconfig
+    #   type: github
+    #   endpoint: spydersoft-gh
+    #   name: spydersoft-consulting/swing-trade-helm-config
+
+trigger:
+  tags:
+    include:
+      - "*"
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - README.md
+
+pr:
+  branches:
+    include:
+      - main
+
+# Composed from two stage templates (as in PitStop): the build/publish stages and the Playwright integration stage,
+# which runs after Build. Composition (not `extends`) is what lets one pipeline pull in both.
+stages:
+  - template: pipelines/build-multi-container/v1.yml@templates
+    parameters:
+      vmImage: ubuntu-latest
+      gitVersionSpec: "6.0.x"
+      netCoreVersion: "10.0.x"
+      externalFeedCredentials: SpydersoftGithub
+      nugetConfigPath: "$(Build.SourcesDirectory)/src/nuget.config"
+
+      buildProject: Spydersoft.SwingTrade.slnx
+
+      publishProjects:
+        - name: api
+          project: src/api/src/Spydersoft.SwingTrade.Api/Spydersoft.SwingTrade.Api.csproj
+          artifactName: swingTradeApi
+
+      executeTests: true
+      testProjects: "**/*.UnitTests/*.csproj"
+      testRunner: mtp
+
+      # TODO(owner): create the SonarCloud project and fill in its key, then set executeSonar/useSonarCloud to true.
+      sonarProjectKey: TODO-sonarcloud-project-key
+      sonarProjectName: swing-trade
+      useSonarCloud: false
+      sonarCloudOrganization: spydersoft-consulting
+      sonarEndpointName: sonarcloud-spydersoft
+      sonarExtraProperties: |
+        sonar.exclusions=**/Migrations/**/*
+        sonar.scanner.scanAll=false
+        sonar.coverage.exclusions=**/Program.cs
+
+      # TODO(M6): the React UI (src/web/src/swing-trade-ui) does not exist yet.
+      uiEnabled: false
+
+      # TODO(M7): image names, registry and chart. Publishing stays off until they exist.
+      # containerRegistryName: github-spydersoft-docker
+      # dockerImages:
+      #   - name: api
+      #     dockerImageName: spydersoft-consulting/swing-trade-api
+      #     dockerFilePath: src/api/src/Spydersoft.SwingTrade.Api/Dockerfile
+      #     artifactName: swingTradeApi
+      #     artifactZipName: Spydersoft.SwingTrade.Api
+      # helmCharts:
+      #   - name: swing-trade
+      #     chartPath: charts/swing-trade
+      # helmfileRepoName: helmfileconfig
+      # helmTagsCollection: "api=$(build.buildnumber),chart_version=$(build.buildnumber)"
+
+      # Serial chain once publishing exists: Build -> integration_tests -> docker_publish/chart_publish -> updateHelmConfig.
+      # Images and the chart only publish if the Playwright suite passes. (PitStop wires these the same way.)
+      # dockerPublishDependsOn:
+      #   - integration_tests
+      # chartPublishDependsOn:
+      #   - integration_tests
+      # updateHelmConfigDependsOn:
+      #   - docker_publish
+      #   - chart_publish
+
+      updateHelmConfig: false
+      buildAndPublishDockerImages: false
+      buildAndPublishHelmCharts: false
+      executeSonar: false
+      uiExecuteSonar: false
+
+  # Playwright suites under src/api/tests. Each suite boots the Aspire AppHost Testing profile itself through
+  # Playwright's webServer (Postgres, mock OIDC, WireMock for Alpaca/Tiingo, the API). That needs .NET 10 and a
+  # container runtime on the agent; ubuntu-latest hosted images ship Docker, which is all the AppHost needs
+  # (podman is a local-development substitution: ASPIRE_CONTAINER_RUNTIME=podman).
+  - template: stages/integration-tests/v1.yml@templates
+    parameters:
+      vmImage: ubuntu-latest
+      stageName: integration_tests
+      dependsOn:
+        - Build
+      netCoreVersion: "10.0.x"
+      nodeVersion: "24.x"
+      externalFeedCredentials: SpydersoftGithub
+      setupSteps:
+        # UseNode@1 mis-resolves "24.x" to a stale cached Node on ubuntu-latest, which breaks corepack. Force the PATH
+        # back to Node 24.x with NodeTool@0 (same workaround as PitStop's pipeline).
+        - task: NodeTool@0
+          displayName: "Force Node 24.x (UseNode@1 workaround)"
+          inputs:
+            versionSpec: "24.x"
+      suites:
+        - name: "API Integration"
+          workingDirectory: src/api/tests/api-integration
+          installCommand: "corepack enable && yarn install --immutable"
+          # The API suite uses Playwright's request context: no browser needed.
+          installBrowsers: false

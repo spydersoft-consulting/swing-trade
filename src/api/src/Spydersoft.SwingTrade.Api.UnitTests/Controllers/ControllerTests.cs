@@ -127,7 +127,7 @@ public class ControllerTests
     [Test]
     public async Task Instruments_ListCreateUpdate()
     {
-        var controller = new InstrumentsController(_ctx.Instruments);
+        var controller = new InstrumentsController(_ctx.Instruments, _ctx.Bars);
 
         var active = await controller.GetAll(true, CancellationToken.None);
         var created = await controller.Create(new CreateInstrumentRequest { Ticker = "VTI", Name = "Total Market" }, CancellationToken.None);

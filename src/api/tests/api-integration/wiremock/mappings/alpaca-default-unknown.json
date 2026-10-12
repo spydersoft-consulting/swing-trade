@@ -1,0 +1,13 @@
+{
+  "priority": 10,
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/v2/stocks/[A-Z0-9.-]+/bars"
+  },
+  "response": {
+    "status": 404,
+    "jsonBody": {
+      "message": "asset not found (canned)"
+    }
+  }
+}

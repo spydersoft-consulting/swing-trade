@@ -1,0 +1,13 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPath": "/v2/stocks/GLD/bars"
+  },
+  "response": {
+    "status": 404,
+    "jsonBody": {
+      "message": "asset not found (canned)"
+    }
+  }
+}

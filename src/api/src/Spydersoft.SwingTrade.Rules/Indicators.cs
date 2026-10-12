@@ -22,13 +22,30 @@ public static class IndicatorCalculator
             closesOldestFirst.Count);
     }
 
-    private static decimal? Average(IReadOnlyList<decimal> closes, int window)
+    /// <summary>
+    /// The simple average of the <paramref name="window"/> closes ending at each bar, for charting. An entry is null until
+    /// <paramref name="window"/> bars exist. The last entry equals the MA that <see cref="Calculate"/> returns for the same input.
+    /// </summary>
+    public static IReadOnlyList<decimal?> MovingAverageSeries(IReadOnlyList<decimal> closesOldestFirst, int window)
     {
-        if (closes.Count < window)
+        ArgumentNullException.ThrowIfNull(closesOldestFirst);
+        ArgumentOutOfRangeException.ThrowIfLessThan(window, 1);
+
+        var series = new decimal?[closesOldestFirst.Count];
+        for (var end = 0; end < series.Length; end++)
+            series[end] = Average(closesOldestFirst, window, end + 1);
+        return series;
+    }
+
+    private static decimal? Average(IReadOnlyList<decimal> closes, int window) => Average(closes, window, closes.Count);
+
+    private static decimal? Average(IReadOnlyList<decimal> closes, int window, int count)
+    {
+        if (count < window)
             return null;
 
         decimal sum = 0m;
-        for (var i = closes.Count - window; i < closes.Count; i++)
+        for (var i = count - window; i < count; i++)
             sum += closes[i];
         return sum / window;
     }

@@ -13,6 +13,10 @@
     <PackageReference Include="Cronos" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -30,5 +34,15 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Spydersoft.SwingTrade.Api.UnitTests" />
   </ItemGroup>
+
+
+  <!-- The OpenAPI document is written to src/api/openapi/swing-trade.json only when asked for:
+       dotnet build src/api/src/Spydersoft.SwingTrade.Api -p:GenerateOpenApi=true  (see src/api/README.md).
+       Generation boots the app up to host build, so it is not part of an ordinary build. -->
+  <PropertyGroup Condition="'$(GenerateOpenApi)' == 'true'">
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name swing-trade</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
 
 </Project>

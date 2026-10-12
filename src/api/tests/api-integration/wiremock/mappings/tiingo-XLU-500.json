@@ -1,0 +1,13 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPath": "/tiingo/daily/XLU/prices"
+  },
+  "response": {
+    "status": 500,
+    "jsonBody": {
+      "detail": "internal error (canned)"
+    }
+  }
+}

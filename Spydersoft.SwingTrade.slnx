@@ -9,4 +9,5 @@
     <Project Path="src/api/src/Spydersoft.SwingTrade.Rules.UnitTests/Spydersoft.SwingTrade.Rules.UnitTests.csproj" />
     <Project Path="src/api/src/Spydersoft.SwingTrade.Rules/Spydersoft.SwingTrade.Rules.csproj" />
   </Folder>
+  <Project Path="src/Spydersoft.SwingTrade.AppHost/Spydersoft.SwingTrade.AppHost.csproj" />
 </Solution>

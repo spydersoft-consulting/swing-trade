@@ -1,0 +1,13 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "GET",
+    "urlPath": "/v2/stocks/XLU/bars"
+  },
+  "response": {
+    "status": 500,
+    "jsonBody": {
+      "message": "internal error (canned)"
+    }
+  }
+}

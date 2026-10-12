@@ -143,6 +143,10 @@ public class AuthorizationTests
             (typeof(RefreshController), "Start", SwingTradeAuth.Policies.Admin),
             (typeof(RefreshController), "GetRuns", SwingTradeAuth.Policies.Read),
             (typeof(RefreshController), "GetRun", SwingTradeAuth.Policies.Read),
+            (typeof(WatchlistController), "Get", SwingTradeAuth.Policies.Read),
+            (typeof(InstrumentsController), "GetBars", SwingTradeAuth.Policies.Read),
+            (typeof(SizerController), "Size", SwingTradeAuth.Policies.Read),
+            (typeof(ExportController), "TradesCsv", SwingTradeAuth.Policies.Read),
         };
         foreach (var (controller, action, policy) in expected)
             Assert.That(PolicyOf(controller, action, HttpMethod.Get), Is.EqualTo(policy), $"{controller.Name}.{action}");

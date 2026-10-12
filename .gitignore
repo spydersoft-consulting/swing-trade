@@ -4,3 +4,18 @@ obj/
 TestResults/
 node_modules/
 *.user
+
+# Node / Yarn / Playwright
+**/.yarn/*
+!**/.yarn/releases
+!**/.yarn/patches
+!**/.yarn/cache
+**/.yarn/unplugged
+**/.yarn/build-state.yml
+**/.yarn/install-state.gz
+test-results/
+playwright-report/
+.playwright/
+
+# Windows reserved-name artifact some tools create
+NUL

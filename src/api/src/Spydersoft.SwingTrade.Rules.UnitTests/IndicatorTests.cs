@@ -68,4 +68,30 @@ public class IndicatorTests
         now = new DateTimeOffset(2026, 10, 12, 21, 0, 0, TimeSpan.Zero);
         Assert.That(BarCompletion.IsCompleted(new DateOnly(2026, 10, 12), now), Is.True);
     }
+
+    [Test]
+    public void MovingAverageSeries_IsNullUntilTheWindowFills_AndMatchesCalculateAtEveryBar()
+    {
+        var closes = Enumerable.Range(1, 60).Select(i => (decimal)(i * i % 37) + 10m).ToList();
+
+        var ma20 = IndicatorCalculator.MovingAverageSeries(closes, IndicatorCalculator.ShortWindow);
+        var ma50 = IndicatorCalculator.MovingAverageSeries(closes, IndicatorCalculator.LongWindow);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ma20, Has.Count.EqualTo(60));
+            Assert.That(ma20.Take(19), Has.All.Null);
+            Assert.That(ma50.Take(49), Has.All.Null);
+            for (var i = 0; i < closes.Count; i++)
+            {
+                var expected = IndicatorCalculator.Calculate(closes.Take(i + 1).ToList());
+                Assert.That(ma20[i], Is.EqualTo(expected.Ma20), $"MA20 at {i}");
+                Assert.That(ma50[i], Is.EqualTo(expected.Ma50), $"MA50 at {i}");
+            }
+        });
+    }
+
+    [Test]
+    public void MovingAverageSeries_RejectsAWindowBelowOne() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => IndicatorCalculator.MovingAverageSeries([1m], 0));
 }

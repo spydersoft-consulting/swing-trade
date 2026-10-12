@@ -26,6 +26,10 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
             .Select(ctx.ToDto).ToList();
     }
 
+    /// <summary>Closed trades with their P&L under current settings, for the wash-sale rules (watchlist re-entry date).</summary>
+    public async Task<IReadOnlyList<ClosedTradeRef>> ClosedRefsAsync(CancellationToken ct = default) =>
+        (await LoadContextAsync(ct)).Closed;
+
     public async Task<ServiceResult<TradeDto>> GetAsync(int id, CancellationToken ct = default)
     {
         var ctx = await LoadContextAsync(ct);
@@ -253,6 +257,7 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         List<Trade> trades, RulesSettings s, decimal capital, List<ClosedTradeRef> closed, Dictionary<string, string> groups)
     {
         public List<Trade> Trades { get; } = trades;
+        public List<ClosedTradeRef> Closed => closed;
 
         public TradeDto ToDto(Trade t)
         {
