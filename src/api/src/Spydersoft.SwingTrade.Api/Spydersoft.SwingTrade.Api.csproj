@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Cronos" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
@@ -22,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Spydersoft.SwingTrade.Contracts\Spydersoft.SwingTrade.Contracts.csproj" />
     <ProjectReference Include="..\Spydersoft.SwingTrade.Data\Spydersoft.SwingTrade.Data.csproj" />
+    <ProjectReference Include="..\Spydersoft.SwingTrade.MarketData\Spydersoft.SwingTrade.MarketData.csproj" />
     <ProjectReference Include="..\Spydersoft.SwingTrade.Rules\Spydersoft.SwingTrade.Rules.csproj" />
   </ItemGroup>
 

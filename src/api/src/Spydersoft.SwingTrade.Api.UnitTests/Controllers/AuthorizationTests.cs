@@ -67,6 +67,26 @@ public class AuthorizationTests
         });
     }
 
+    private static string PolicyOf<TController>(string action) =>
+        typeof(TController).GetMethod(action)!.GetCustomAttribute<AuthorizeAttribute>()!.Policy!;
+
+    // Columns: roles, POST /refresh allowed, GET /refresh/runs allowed
+    [TestCase(new string[0], false, false)]
+    [TestCase(new[] { "swingtrade.reader" }, false, true)]
+    [TestCase(new[] { "swingtrade.trader" }, false, true)]
+    [TestCase(new[] { "swingtrade.admin" }, true, true)]
+    [TestCase(new[] { "swingtrade.mcp" }, false, false)]
+    public async Task RefreshEndpoints_RoleMatrix(string[] roles, bool canTrigger, bool canListRuns)
+    {
+        var user = User(roles);
+        Assert.Multiple(async () =>
+        {
+            Assert.That(await Allowed(user, PolicyOf<RefreshController>(nameof(RefreshController.Start))), Is.EqualTo(canTrigger), "POST /refresh");
+            Assert.That(await Allowed(user, PolicyOf<RefreshController>(nameof(RefreshController.GetRuns))), Is.EqualTo(canListRuns), "GET /refresh/runs");
+            Assert.That(await Allowed(user, PolicyOf<RefreshController>(nameof(RefreshController.GetRun))), Is.EqualTo(canListRuns), "GET /refresh/runs/{id}");
+        });
+    }
+
     [Test]
     public async Task RoleArray_ExpandedToMultipleClaims_IsHonoured()
     {
@@ -120,6 +140,9 @@ public class AuthorizationTests
             (typeof(DashboardController), "Get", SwingTradeAuth.Policies.Read),
             (typeof(SettingsController), "Get", SwingTradeAuth.Policies.Read),
             (typeof(SettingsController), "Update", SwingTradeAuth.Policies.Admin),
+            (typeof(RefreshController), "Start", SwingTradeAuth.Policies.Admin),
+            (typeof(RefreshController), "GetRuns", SwingTradeAuth.Policies.Read),
+            (typeof(RefreshController), "GetRun", SwingTradeAuth.Policies.Read),
         };
         foreach (var (controller, action, policy) in expected)
             Assert.That(PolicyOf(controller, action, HttpMethod.Get), Is.EqualTo(policy), $"{controller.Name}.{action}");

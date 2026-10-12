@@ -4,6 +4,8 @@
     <Project Path="src/api/src/Spydersoft.SwingTrade.Api/Spydersoft.SwingTrade.Api.csproj" />
     <Project Path="src/api/src/Spydersoft.SwingTrade.Contracts/Spydersoft.SwingTrade.Contracts.csproj" />
     <Project Path="src/api/src/Spydersoft.SwingTrade.Data/Spydersoft.SwingTrade.Data.csproj" />
+    <Project Path="src/api/src/Spydersoft.SwingTrade.MarketData.UnitTests/Spydersoft.SwingTrade.MarketData.UnitTests.csproj" />
+    <Project Path="src/api/src/Spydersoft.SwingTrade.MarketData/Spydersoft.SwingTrade.MarketData.csproj" />
     <Project Path="src/api/src/Spydersoft.SwingTrade.Rules.UnitTests/Spydersoft.SwingTrade.Rules.UnitTests.csproj" />
     <Project Path="src/api/src/Spydersoft.SwingTrade.Rules/Spydersoft.SwingTrade.Rules.csproj" />
   </Folder>

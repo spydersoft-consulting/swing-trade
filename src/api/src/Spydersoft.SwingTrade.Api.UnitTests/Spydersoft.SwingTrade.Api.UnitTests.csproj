@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Spydersoft.SwingTrade.Api\Spydersoft.SwingTrade.Api.csproj" />
+    <ProjectReference Include="..\Spydersoft.SwingTrade.MarketData\Spydersoft.SwingTrade.MarketData.csproj" />
     <ProjectReference Include="..\Spydersoft.SwingTrade.Data\Spydersoft.SwingTrade.Data.csproj" />
   </ItemGroup>
 
