@@ -8,7 +8,7 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 | 2 | Frontend data/state | TanStack Query | Redux Toolkit slices + generated hey-api client | Reference app |
 | 3 | UI library / charts | Recharts | PrimeReact + Tailwind 4; Chart.js for charts | Reference app ("matching the reference app's UI library") |
 | 4 | Local orchestration | Docker Compose | .NET Aspire AppHost locally; Helm in-cluster; no compose file | Reference app has no compose |
-| 5 | Auth (web/API) | single user | OidcProxy BFF + JWT bearer at `auth.mattgerega.net`, policies Read/Write/Admin/Mcp, now role-based (see M2 decision 17); single owner (no per-row OwnerId) | Reference app, but one user |
+| 5 | Auth (web/API) | single user | OidcProxy BFF + JWT bearer at `auth.mattgerega.net`, policies Read/Write/Admin/Mcp, now role-based (see decision 34); single owner (no per-row OwnerId) | Reference app, but one user |
 | 6 | Package manager / Node | n/a | Yarn 4, Node 24 | Reference app |
 | 7 | Solution format / layout | `Journal.*` projects | `Spydersoft.SwingTrade.*` names; `.slnx`; `Rules`, `Data`, `MarketData`, `Contracts`, `Api`, `UnitTests`, `AppHost`, `Frontend`, `swing-trade-ui` | Reference app naming; plan's project split preserved |
 | 8 | API route prefix | `/api/...` | `/api/v1/...` | Reference app convention; MCP stays at `/mcp` |
@@ -41,8 +41,8 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 
 | # | Topic | Decision | Why |
 | --- | --- | --- | --- |
-| 17 | Authorization model | Replaces the reference app's scope policies (and "any authenticated user") with role-based policies `Read`, `Write`, `Admin`, `Mcp`. Each requires authenticated user, audience `swingtrade`, a `sub` claim, and a `role` claim: `swingtrade.reader` / `.trader` / `.admin` (admin satisfies trader satisfies reader) and `swingtrade.mcp` (independent). `MapInboundClaims=false`, `RoleClaimType="role"`; role may be one claim or an array. Names live in `SwingTradeAuth`; `Auth:Audience` config removed, only `Auth:Authority` remains. GET = Read; trade create/edit/fill/close/cancel/delete, notes POST, instruments POST/PUT = Write; PUT settings = Admin. No role gives 403. Tests: role matrix, audience/sub/anonymous denial, and a reflection test failing on any controller action without a known `[Authorize(Policy)]`. Identity-server changes are in `docs/IDENTITY_SETUP.md` | Per the new "Authorization and roles" section of the plan; deny by default |
-| 18 | Auth failure logging | Not yet implemented (logging `sub`, path, required policy on 403); to add with the Settings roles screen and `POST /api/refresh` (Admin) | Out of scope of the M2 policy change |
+| 34 | Authorization model | Replaces the reference app's scope policies (and "any authenticated user") with role-based policies `Read`, `Write`, `Admin`, `Mcp`. Each requires authenticated user, audience `swingtrade`, a `sub` claim, and a `role` claim: `swingtrade.reader` / `.trader` / `.admin` (admin satisfies trader satisfies reader) and `swingtrade.mcp` (independent). `MapInboundClaims=false`, `RoleClaimType="role"`; role may be one claim or an array. Names live in `SwingTradeAuth`; `Auth:Audience` config removed, only `Auth:Authority` remains. GET = Read; trade create/edit/fill/close/cancel/delete, notes POST, instruments POST/PUT = Write; PUT settings = Admin. No role gives 403. Tests: role matrix, audience/sub/anonymous denial, and a reflection test failing on any controller action without a known `[Authorize(Policy)]`. Identity-server changes are in `docs/IDENTITY_SETUP.md` | Per the new "Authorization and roles" section of the plan; deny by default |
+| 35 | Auth failure logging | Not yet implemented (logging `sub`, path, required policy on 403); to add with the Settings roles screen and `POST /api/refresh` (Admin) | Out of scope of the M2 policy change |
 
 ## M2 decisions
 
@@ -65,3 +65,10 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 | 31 | Auth policies | `swingtrade:read` and `swingtrade:write` scope claims, same shape as PitStop. The Testing-environment symmetric key branch is not copied yet | No integration tests or AppHost in M2 |
 | 32 | Dashboard extras | `expectancy` and `drawdown` are still not returned (see #14); the dashboard DTO carries everything the library computes, including the equity curve | No formula in the plan |
 | 33 | Tests | Service and controller tests use the EF Core InMemory provider (no Sqlite); uniqueness is enforced by the service and the database index | InMemory does not enforce unique indexes, so the service check is what is tested |
+
+## M3 inputs (2026-10-12)
+
+| # | Topic | Decision | Why |
+| --- | --- | --- | --- |
+| 36 | Market data provider | Alpaca (`feed=sip`, `adjustment=split`) is the primary; Tiingo (raw `close`, never `adjClose`) is the configurable fallback, behind an ordered `IMarketDataProvider` registry. The E*TRADE API is not used. The owner chose to trust Alpaca's feed without a cross-check against broker charts | This is a research tool; real orders use the broker's live numbers. See `docs/MARKET_DATA_OPTIONS.md` |
+| 37 | End-to-end API tests | Playwright suite against the Aspire `Testing` stack with mock OIDC and WireMock, built up per milestone from M4 | Owner request; mirrors PitStop |

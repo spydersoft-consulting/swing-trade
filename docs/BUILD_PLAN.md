@@ -244,6 +244,27 @@ The API is a thin layer over the rules library: it validates input, loads data, 
 
 Conventions: follow the reference app's error format (ProblemDetails if it has none), return 400 with field errors on validation failure, publish an OpenAPI document, and keep DTOs separate from entities.
 
+## Authorization and roles
+
+Unlike the reference app, where any authenticated user passes, this application is locked down: a valid token is necessary but not sufficient. Access is granted only by roles that the identity server (`auth.mattgerega.net`, Duende) assigns to a user, and a user without a role gets 403 on everything except health checks.
+
+| Role | Grants |
+| --- | --- |
+| `swingtrade.reader` | Read-only REST: watchlist, trades, dashboard, notes, bars, settings, refresh history, sizer (a pure calculation), CSV export |
+| `swingtrade.trader` | Everything a reader can do, plus create, edit, fill, close, cancel and delete trades, add notes, and add or edit instruments |
+| `swingtrade.admin` | Everything a trader can do, plus change Settings (thresholds, tax rate, RiskBasis), trigger `POST /api/refresh`, view McpCallLog, and manage MCP options such as the `add_note` flag |
+| `swingtrade.mcp` | May call `/mcp`. Independent of the REST roles, so Claude's connector can be limited to reading without also being a REST user |
+
+Rules:
+
+- Roles are carried in the `role` claim (single string or array), the same claim the identity server uses today (for example `authentication.admin`). Configure `MapInboundClaims = false` and `RoleClaimType = "role"`. The identity server must emit the claim in the access token for this API: define an API resource/scope (for example `swingtrade`) whose `UserClaims` include `role`, and a user-to-role assignment for the owner. Document the exact identity-server changes in `docs/IDENTITY_SETUP.md`; do not edit the identity repo from here.
+- Authorization policies are named for what they allow (`Read`, `Write`, `Admin`, `Mcp`) and each requires the audience, a `sub` claim, and the matching role. Roles are hierarchical in code through the policies (admin satisfies trader, trader satisfies reader), not by duplicating assignments. Use `[Authorize(Policy = ...)]` on every controller action; a controller or action with no policy is a build-time test failure (see tests).
+- `swingtrade.mcp` is required on `/mcp` in addition to the MCP authentication rules below. The REST roles do not grant MCP access and the MCP role does not grant REST access.
+- The role names, policy names and the audience are constants in one place and are shown (read-only) in the Settings screen, so the owner can see what to grant.
+- The web BFF (`OidcProxy`) forwards the user's token unchanged; it must not mask a 403. The UI reads the user's roles and hides or disables actions the user cannot perform, but the API is the only enforcement point.
+- A user with no `swingtrade.*` role who signs in to the UI sees an 'Access not granted' page that names the roles to request, not an empty app.
+- Default stance is deny: new endpoints are inaccessible until a policy is assigned. Log authorization failures (user `sub`, path, required policy) without logging tokens.
+
 ## MCP endpoint for Claude
 
 The API also hosts a Model Context Protocol (MCP) server, so the owner can open Claude (claude.ai, the desktop or mobile app, or Claude Code), connect it to the journal, and ask it to review the current data and help with judgement calls: which pullback candidates look best this week, whether a planned trade fits the rules, what the last ten trades say about the process. The app itself still makes no LLM call. Claude is the client, the thinking happens in the owner's own Claude session, and every number comes from `Journal.Rules`. Tools return computed values and Claude must not recompute them.
@@ -256,7 +277,7 @@ The API also hosts a Model Context Protocol (MCP) server, so the owner can open 
 
 - Accept only requests carrying a valid bearer token. An unauthenticated request gets `401` with `WWW-Authenticate: Bearer resource_metadata="…"`; Claude ignores that header on a `200`.
 - Preferred: OAuth 2.0 with an external identity provider as the authorization server, with the app acting only as the resource server. Serve protected resource metadata (RFC 9728) whose `resource` equals the MCP URL exactly and whose `authorization_servers` lists the issuer first. The provider must support PKCE S256 and either Dynamic Client Registration or Client ID Metadata Documents, and must accept redirect `https://claude.ai/api/mcp/auth_callback` plus a port-agnostic loopback redirect for Claude Code.
-- Authorize by identity: allow only the owner's account (a configured subject or email), and reject every other valid token.
+- Authorize by role and identity: require the `swingtrade.mcp` role (see Authorization and roles), and additionally allow only the owner's account (a configured subject or email). Reject every other valid token, even one that carries the role.
 - Fallback if OAuth is too heavy: a long random static bearer token in the `Authorization` header. Claude's request-header authentication is in beta for a limited set of organizations, so confirm in M0 that the owner's account can use it. Never accept a token in the query string.
 - Do not run the endpoint unauthenticated, even behind an unguessable URL.
 
@@ -298,7 +319,7 @@ Six screens, built in this order, with the Watchlist first because it replaces t
 3. **Sizer.** A standalone calculator showing shares by risk, by cap, and by cash, the verdict, and the maximum entry for the minimum reward-to-risk. A 'Create planned trade' button saves the result.
 4. **Dashboard.** Tiles for account value, realized P&L, tax set-aside, open positions against the limit, capital at work, and risk at stops. Below them: performance metrics, results by setup, the SPY comparison, and an equity curve.
 5. **Journal and weekly routine.** The pass log and review notes, plus the one-hour routine as a checklist with a time box per step: review open trades (10 min), read the watchlist signals (15), inspect candidates on the chart for swing low and prior high (15), size the trade (10), log it and place orders (10).
-6. **Settings.** Every threshold with a one-line explanation, the tax-rate assumption flagged as an assumption, and a reset-to-defaults action. An MCP panel shows the endpoint URL, the allowed owner identity, the on/off flag for note tools, and the last 20 McpCallLog entries.
+6. **Settings.** (Admin only for edits; readers and traders see it read-only.) Every threshold with a one-line explanation, the tax-rate assumption flagged as an assumption, and a reset-to-defaults action. An MCP panel shows the endpoint URL, the allowed owner identity, the on/off flag for note tools, and the last 20 McpCallLog entries.
 
 Formatting: money to cents, percentages to one decimal, red for 'Avoid' and warnings, green for 'Pullback candidate', neutral for everything else. Never show a number without its as-of date where staleness could matter.
 
@@ -374,6 +395,18 @@ Given a Closed XLE trade with a loss, exited 2026-10-05:
 - Opened 2026-09-05 is flagged (the loss exit is 30 days after); opened 2026-09-04 is not.
 - ReentryOkAfter for XLE is 2026-11-05. A winning trade creates no flag, and a trade never flags itself.
 
+### End-to-end API tests
+
+Unit tests are not enough: the API also gets an end-to-end suite that runs against the real running stack, mirroring PitStop's `src/api/tests/api-integration`.
+
+- **Location and tooling:** `src/api/tests/api-integration`, Playwright's request context (no browser), TypeScript, Yarn 4, with WireMock for external HTTP. Add the suite to `.devops/pipeline-ci.yml` through the shared `stages/integration-tests/v1.yml` template so image publish is gated on it, as PitStop does.
+- **Stack under test:** the Aspire AppHost `Testing` profile starts Postgres, the API, a mock OIDC server (as PitStop does) and a WireMock container standing in for Alpaca and Tiingo, with canned daily-bar mappings. Playwright's `webServer` boots it. No test calls a real market-data provider.
+- **Auth in tests:** the mock OIDC server issues tokens with controllable `role` and `aud` claims. A helper mints tokens for each persona: no role, reader, trader, admin, mcp-only, wrong audience, expired. The seeder pattern from PitStop (a test key trusted only in the `Testing` environment) is acceptable if the mock OIDC route is too heavy, but the real JWT validation path must still run.
+- **Data:** each spec starts from the seeded database (the XLE trade, default settings, 12 active instruments) and cleans up what it creates, so specs can run in any order.
+- **Coverage:** one spec file per endpoint group in the API table. Each covers the happy path, validation errors (400 with field errors), not-found, illegal status transitions, and the role matrix (every endpoint is hit by every persona and the expected 200, 403 or 401 is asserted). Specific scenarios: the seeded dashboard matches the closed-trade fixture; the sizer fixtures return the documented shares and verdicts; changing a threshold changes `GET /api/v1/watchlist` signals on the next call with no refresh; `POST /api/v1/refresh` against WireMock loads bars, computes indicators, and records a RefreshRun, and a failing ticker is recorded without stopping the others; re-running refresh is idempotent; CSV export matches the trade log; the stale badge flag appears when the latest bar is old.
+- **MCP:** the same suite drives `/mcp` over Streamable HTTP with the `swingtrade.mcp` persona: `tools/list` returns exactly the documented tools, each tool's result equals the matching REST response, a missing token returns 401 with `resource_metadata`, a non-owner or non-mcp token is rejected, and the token never appears in McpCallLog.
+- **When it grows:** the suite is built up per milestone, not at the end. Each milestone that adds endpoints adds its specs, and the pipeline runs them from M4 onward.
+
 ### Job and API
 
 - Upserting the same bars twice leaves one row per (Ticker, Date).
@@ -384,7 +417,9 @@ Given a Closed XLE trade with a loss, exited 2026-10-05:
 
   MCP: each tool's result equals the matching REST response for the same seed data (dashboard, watchlist, size\_position fixtures).
 
-  MCP: no token returns 401 with a `resource_metadata` pointer; a valid token for a non-owner identity is rejected; the token never appears in McpCallLog.
+  MCP: no token returns 401 with a `resource_metadata` pointer; a valid token for a non-owner identity is rejected; a valid owner token without `swingtrade.mcp` is rejected with 403; the token never appears in McpCallLog.
+
+  Authorization: a valid token with no `swingtrade.*` role gets 403 on every REST endpoint; a reader gets 403 on every write endpoint; a trader gets 403 on settings, refresh and McpCallLog; an admin can do all of it; a token with the wrong audience gets 401. A reflection test fails the build if any controller action lacks an `[Authorize]` policy (other than the health checks).
 
   MCP: oversized requests are capped (120 bars, 100 trades). Verify end to end with the MCP Inspector, then with a custom connector in Claude.
 
@@ -394,10 +429,10 @@ Eight milestones, each ending in passing tests, a commit, and a stop for review;
 
 1. **M0, reconnaissance (no code).** Read the reference app and write `docs/REFERENCE_NOTES.md`. Check the market-data candidates against their terms and free-tier limits. Propose the M1 plan. Done when the notes and the plan are approved.
 2. **M1, rules library.** `Journal.Rules` with indicators, trend, signal, sizer, trade math, wash-sale, and dashboard calculators, plus unit tests for every fixture in the test plan. Done when all fixtures pass exactly and the library has no I/O or database references.
-3. **M2, persistence and CRUD.** Entities, migrations, seed data, and the settings, instruments, trades, and notes endpoints, with validation and computed fields from the rules library. Done when the seeded XLE trade produces the dashboard fixture through the API.
+3. **M2, persistence and CRUD.** Entities, migrations, seed data, and the settings, instruments, trades, and notes endpoints, with validation and computed fields from the rules library, and role-based authorization on every endpoint (see Authorization and roles). Done when the seeded XLE trade produces the dashboard fixture through the API and the role tests pass.
 4. **M3, market data and nightly job.** Provider interface, one real implementation, the fake, the ingestion service, the scheduled hosted service, backfill, the completed-bar rule, RefreshRun, and `POST /api/refresh`. Done when the 12 active tickers load for real and their MA20 and MA50 match a broker chart to within a few cents.
-5. **M4, remaining endpoints.** Watchlist, sizer, dashboard, bars, export, and a generated OpenAPI client. Done when every endpoint in the API table works and has an integration test.
-6. **M5, MCP endpoint.** Add the SDK, the tools, the `journal://rules` resource, the two prompts, token validation, protected resource metadata, and McpCallLog. Choose the identity provider (or the static-token fallback) and the hosting address with the owner first. Done when the MCP Inspector lists and calls every tool against seeded data, and Claude connected as a custom connector can answer 'what are my pullback candidates and how many shares for each?' using only tool output.
+5. **M4, remaining endpoints.** Watchlist, sizer, dashboard, bars, export, and a generated OpenAPI client. Also add the Aspire AppHost (`Testing` profile with mock OIDC and WireMock) and the Playwright `api-integration` suite described in End-to-end API tests, with specs for everything built so far (M2 and M3 endpoints included) and the pipeline stage. Done when every endpoint in the API table works, has an end-to-end spec that includes the role matrix, and the suite passes locally through the AppHost.
+6. **M5, MCP endpoint.** Add the SDK, the tools, the `journal://rules` resource, the two prompts, token validation, protected resource metadata, and McpCallLog. Enforce the `swingtrade.mcp` role and owner identity. Confirm with the owner how the Claude client is registered in the identity server (the static-token fallback has no role claim, so it must be checked against the configured owner token instead) and the hosting address first. Add the MCP specs to the end-to-end suite. Done when the end-to-end MCP specs pass, the MCP Inspector lists and calls every tool against seeded data, and Claude connected as a custom connector can answer 'what are my pullback candidates and how many shares for each?' using only tool output.
 7. **M6, React app.** The six screens in order: Watchlist, Trades, Sizer, Dashboard, Journal and routine, Settings. Done when a full week's routine can be run in the UI without opening the spreadsheet.
 8. **M7, hardening.** Docker Compose, CI, README, backup note, health checks, the stale-data badge, and `docs/DECISIONS.md` complete. Done when a fresh clone starts with one command.
 
@@ -411,7 +446,7 @@ Twelve choices are still open; each has a recommended default so Claude Code can
 | --- | --- | --- |
 | Market data provider | Pick in M0 after checking free-tier limits and terms; keep it behind the interface | Free tiers and terms change, and the rules should not care |
 | Database | Same as the reference app; otherwise PostgreSQL | Fewest surprises for a self-hosted setup |
-| Auth and hosting | Same as the reference app, single user. The web UI and REST API stay private; only /mcp is public | The data is personal finance; no brokerage credentials are stored. Claude's cloud apps need a public HTTPS endpoint |
+| Auth and hosting | Same identity server and BFF as the reference app, but access requires explicit `swingtrade.*` roles granted in the identity server (reader, trader, admin, mcp); a bare authenticated user is denied. The web UI and REST API stay private; only /mcp is public | The data is personal finance; no brokerage credentials are stored. Claude's cloud apps need a public HTTPS endpoint |
 | Risk basis | StartingCapital | Matches the workbook; switch to AccountValue in Settings if preferred |
 | Signal timing | Last completed close | Reproducible and matches the workbook; live quote is a later column |
 | Wash-sale scope | Ticker only, with the optional WashSaleGroup field unused | Matches the workbook; whether SPY, SPLG and VOO are 'substantially identical' is a question for a tax professional |
