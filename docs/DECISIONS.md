@@ -114,3 +114,14 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 | 64 | Yarn layout | `src/api/tests/api-integration` is its own Yarn project (own `yarn.lock`), as in PitStop; the root `package.json` only declares the future `src/web/src/*` workspace. `packageManager` is `yarn@4.14.1` (PitStop's version), supplied by corepack; no release file is committed | Reference app |
 | 65 | CI | `.devops/pipeline-ci.yml` mirrors PitStop's: the build template (build, unit tests with `testRunner: mtp`), then `stages/integration-tests/v1.yml` running the API suite. Docker publish, Helm and UI stages are commented with TODO(M6/M7), and Sonar is off until a project key exists. `src/nuget.config` (the same as PitStop's: nuget.org plus the Spydersoft GitHub feed) was added for restore. The pipeline file has not been run | No registry, chart or UI yet |
 | 66 | Container runtime locally | The AppHost runs on Docker or on podman (`ASPIRE_CONTAINER_RUNTIME=podman`). The suite was run for real with podman 6.1.3 on Windows | Only podman was available on the build machine |
+
+## M5 choices made by the owner (2026-10-12)
+
+| # | Topic | Decision | Why |
+| --- | --- | --- | --- |
+| 67 | MCP authentication | OAuth 2.0 through the existing identity server (Duende). The app is only a resource server: it serves protected resource metadata (RFC 9728) and validates JWTs. One confidential authorization-code + PKCE client is registered by hand in Duende for the Claude connector (redirect `https://claude.ai/api/mcp/auth_callback`); its client ID and secret go into the connector's Advanced settings, so Dynamic Client Registration is not needed. Access needs the `swingtrade.mcp` role and the configured owner subject. No static-token fallback unless the owner asks later | Owner chose OAuth; Claude's help center lists optional OAuth Client ID/Secret under Advanced settings |
+| 68 | MCP hosting | Same hostname as the UI. The BFF/UI route stays private; a second, public HTTPRoute exposes only `/mcp` and `/.well-known/oauth-protected-resource` (through a public gateway, optionally allowlisting Anthropic's `160.79.104.0/21`). No CORS | Owner choice; smallest public surface |
+| 69 | add_note | Built, off by default behind a config flag; when on it requires `swingtrade.trader` in addition to `swingtrade.mcp`. It only appends a note | Owner choice |
+| 70 | Claude Code access | A second, public PKCE client (no secret) in Duende for the CLI with a port-agnostic loopback redirect, so a leaked CLI config does not expose the connector's secret. Same role and owner checks apply | Owner choice |
+
+Items to verify in M5: that Duende emits the audience for the MCP resource (resource indicators, RFC 8707, or a fixed `swingtrade` audience), that the connector accepts the pre-registered client against Duende's discovery document, and the exact public gateway name and allowlist. `docs/IDENTITY_SETUP.md` must gain the two client definitions.
