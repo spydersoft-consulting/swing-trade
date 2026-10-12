@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/api/">
+    <Project Path="src/api/src/Spydersoft.SwingTrade.Rules.UnitTests/Spydersoft.SwingTrade.Rules.UnitTests.csproj" />
+    <Project Path="src/api/src/Spydersoft.SwingTrade.Rules/Spydersoft.SwingTrade.Rules.csproj" />
+  </Folder>
+</Solution>
