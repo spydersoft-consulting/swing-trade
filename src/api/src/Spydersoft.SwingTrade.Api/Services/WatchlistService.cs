@@ -11,7 +11,11 @@ public class WatchlistService(SwingTradeDbContext db, SettingsService settings, 
     private static readonly string[] SortKeys = ["ticker", "signal", "pctvs20", "last", "asof"];
 
     /// <summary>One row per active ticker. Trend and Signal come from the Rules library under the current Settings.</summary>
-    public async Task<ServiceResult<List<WatchlistRowDto>>> GetAsync(WatchlistQuery query, CancellationToken ct = default)
+    public Task<ServiceResult<List<WatchlistRowDto>>> GetAsync(WatchlistQuery query, CancellationToken ct = default) =>
+        GetAsync(query, activeOnly: true, ct);
+
+    /// <summary>As above; <paramref name="activeOnly"/> false also lists deactivated instruments (used by the MCP tools).</summary>
+    public async Task<ServiceResult<List<WatchlistRowDto>>> GetAsync(WatchlistQuery query, bool activeOnly, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -31,7 +35,7 @@ public class WatchlistService(SwingTradeDbContext db, SettingsService settings, 
             return errors.ToResult<List<WatchlistRowDto>>();
 
         var s = await settings.GetRulesAsync(ct);
-        var instruments = await db.Instruments.AsNoTracking().Where(i => i.Active).ToListAsync(ct);
+        var instruments = await db.Instruments.AsNoTracking().Where(i => !activeOnly || i.Active).ToListAsync(ct);
         var tickers = instruments.Select(i => i.Ticker).ToList();
         var snapshots = (await db.IndicatorSnapshots.AsNoTracking().Where(x => tickers.Contains(x.Ticker)).ToListAsync(ct))
             .GroupBy(x => x.Ticker)

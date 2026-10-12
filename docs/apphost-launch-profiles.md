@@ -56,7 +56,10 @@ Defined in `src/Spydersoft.SwingTrade.AppHost/MockOidc.cs`.
 | `reader` | `swingtrade.reader` |
 | `trader` | `swingtrade.trader` |
 | `admin` | `swingtrade.admin` |
-| `mcponly` | `swingtrade.mcp` |
+| `mcponly` | `swingtrade.mcp` (sub `mcponly-1`, the configured MCP owner) |
+| `mcpother` | `swingtrade.mcp` (sub `mcpother-1`, not the owner: `/mcp` must refuse it; used by the MCP specs only) |
+
+Whenever the mock OIDC server is on (`Local` and `Testing`), the AppHost passes `Mcp__PublicUrl=http://localhost:8180/mcp` and `Mcp__OwnerSubject=mcponly-1` to the API, so `mcponly` can use `/mcp` and nobody else can. `appsettings.Testing.json` raises `Mcp:RequestsPerMinute` to 1000.
 
 Clients (secret `swingtrade-api-test-secret`, resource-owner password grant): `swingtrade-api-test` (normal lifetime) and `swingtrade-api-test-short` (one-second access tokens, used to get a genuinely expired token). Scope `swingtrade` is the API resource the API requires as audience and carries the `role` claim; scope `other-api` is a second resource, used to mint a validly signed token with the wrong audience.
 

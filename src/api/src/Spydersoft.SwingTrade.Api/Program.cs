@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Spydersoft.Platform.Hosting.StartupExtensions;
 using Spydersoft.Platform.Hosting.Telemetry;
 using Spydersoft.SwingTrade.Api;
+using Spydersoft.SwingTrade.Api.Mcp;
 using Spydersoft.SwingTrade.Api.Refresh;
 using Spydersoft.SwingTrade.Api.Security;
 using Spydersoft.SwingTrade.Api.Services;
@@ -24,7 +25,9 @@ if (generatingOpenApi)
         ["Telemetry:Metrics:Type"] = "console",
         ["Telemetry:Trace:Type"] = "console",
         ["MarketData:Providers:0"] = "fake",
-        ["Refresh:ScheduleEnabled"] = "false"
+        ["Refresh:ScheduleEnabled"] = "false",
+        ["Mcp:PublicUrl"] = "https://openapi-generation-only.invalid/mcp",
+        ["Mcp:OwnerSubject"] = "openapi-generation-only"
     });
 }
 
@@ -56,16 +59,10 @@ builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<SettingsService>();
-builder.Services.AddScoped<InstrumentService>();
-builder.Services.AddScoped<TradeService>();
-builder.Services.AddScoped<NoteService>();
-builder.Services.AddScoped<DashboardService>();
-builder.Services.AddScoped<WatchlistService>();
-builder.Services.AddScoped<BarService>();
-builder.Services.AddScoped<SizerService>();
-builder.Services.AddScoped<ExportService>();
+builder.Services.AddSwingTradeApplicationServices();
+builder.Services.AddScoped<McpAdminService>();
 
+builder.Services.AddSwingTradeMcp(builder.Configuration, builder.Environment);
 builder.Services.AddMarketData(builder.Configuration);
 builder.Services.AddSingleton<MarketCalendar>();
 builder.Services.AddSingleton<RefreshSchedule>();
@@ -95,9 +92,11 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 }
 
 app.UseSpydersoftRequestLogging();
+app.UseSwingTradeMcp();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapSwingTradeMcp();
 app.UseSpydersoftHealthChecks(healthCheckOptions);
 
 await app.RunAsync();

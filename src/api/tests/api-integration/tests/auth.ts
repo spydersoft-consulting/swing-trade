@@ -9,6 +9,9 @@ export const OIDC_URL = process.env.SWINGTRADE_OIDC_URL ?? "http://localhost:821
 export const PERSONAS = ["norole", "reader", "trader", "admin", "mcponly"] as const;
 export type Persona = (typeof PERSONAS)[number];
 
+/** Holds the swingtrade.mcp role but is not the configured owner (Mcp:OwnerSubject is the mcponly user), so /mcp must refuse it. */
+export const MCP_OTHER_USER = "mcpother" as const;
+
 const PASSWORD = "Test123!";
 const CLIENT_SECRET = "swingtrade-api-test-secret";
 const CLIENT_ID = "swingtrade-api-test";
@@ -20,7 +23,7 @@ interface MintOptions {
 }
 
 /** Resource-owner password grant for one persona. */
-export async function mintToken(persona: Persona, options: MintOptions = {}): Promise<string> {
+export async function mintToken(persona: Persona | "mcpother", options: MintOptions = {}): Promise<string> {
   const response = await fetch(`${OIDC_URL}/connect/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

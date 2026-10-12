@@ -38,6 +38,31 @@ All routes are under `/api/v1` and need a token for audience `swingtrade` with a
 | `GET /export/trades.csv` | Trade log with computed fields, for tax time |
 | `GET /dashboard`, `/settings`, `/trades`, `/notes`, `/instruments`, `/refresh/runs` | As in `docs/BUILD_PLAN.md` |
 
+## MCP endpoint for Claude
+
+`/mcp` is a Streamable HTTP MCP server (official C# SDK `ModelContextProtocol.AspNetCore`, stateless; there is no `initialize` handshake or session to keep). It lives in `Api/Mcp` and is a thin layer over the same services the controllers use. Design choices are DECISIONS #71 to #83; the identity-server and Helm side is in `docs/IDENTITY_SETUP.md`.
+
+- **Tools** (read-only): `get_dashboard`, `get_watchlist`, `get_instrument`, `get_bars` (max 120), `list_trades` (max 100), `get_trade`, `size_position`, `get_settings`, `get_refresh_status`, `list_notes`. Each returns `{ asOf, dataStatus, settings, data }`; `data` equals the matching REST response. `add_note` exists only with `Mcp:EnableAddNote=true` and then also needs `swingtrade.trader`.
+- **Resource** `journal://rules`: the rule set as plain text, generated from the Rules library constants and the live Settings.
+- **Prompts** `weekly_review` and `trade_postmortem(tradeId)`.
+- **Access**: bearer token from `Auth:Authority` with audience `swingtrade`, role `swingtrade.mcp`, and `sub` equal to `Mcp:OwnerSubject`. No token or a bad one is 401 with `WWW-Authenticate: Bearer resource_metadata="..."`; a valid token for anyone else is 403. Tokens are read from the Authorization header only. `/.well-known/oauth-protected-resource` (and `.../mcp`) serves the RFC 9728 metadata. Host allowlist (`Mcp:AllowedHosts`, 421), a rate limit (`Mcp:RequestsPerMinute`, 429), no CORS.
+- **Audit**: every tool, resource and prompt call is written to `McpCallLog` (caller, sanitised arguments, duration, status; never a token), kept 90 days. `GET /api/v1/mcp/calls?take=20` (Admin) and `GET /api/v1/mcp/info` (Read) feed the Settings screen.
+
+| Setting | Meaning |
+| --- | --- |
+| `Mcp:PublicUrl` | Absolute public URL of `/mcp`; the metadata `resource`. https outside Development and Testing |
+| `Mcp:OwnerSubject` | The only `sub` allowed. Required outside Development and Testing (startup fails without it) |
+| `Mcp:AllowedHosts` | Host names for the MCP routes; default is the host of `Mcp:PublicUrl` |
+| `Mcp:EnableAddNote` | Registers `add_note`; default false |
+| `Mcp:RequestsPerMinute` | Fixed-window limit for `/mcp` and the metadata routes; default 120 |
+
+Try it against the running `Testing` stack with the MCP Inspector (mint the `mcponly` token as shown in `docs/apphost-launch-profiles.md`; the Testing API trusts that user as the owner):
+
+```bash
+npx @modelcontextprotocol/inspector --cli http://localhost:8180/mcp --transport http \
+  --header "Authorization: Bearer $MCP_TOKEN" --method tools/list
+```
+
 ## OpenAPI document
 
 The committed document is `src/api/openapi/swing-trade.json`. Regenerate it after changing a route or a DTO (this starts the app up to host build only; no database is needed):
@@ -62,6 +87,6 @@ yarn typecheck            # tsc --noEmit
 yarn test:report          # open the HTML report
 ```
 
-What it covers: one spec file per endpoint group (settings, instruments, trades with fill/close/cancel, notes, watchlist, bars, sizer with the plan's fixtures, dashboard against the seeded XLE trade, refresh against WireMock, CSV export, OpenAPI), `thresholds.spec.ts` (a Settings change shows on the next call without a refresh), and `auth.spec.ts` (every endpoint for every persona: 403 without a sufficient role, 401 for no token, a wrong audience, an expired token, a forged signature). `refresh.spec.ts` runs first and loads the canned bars. Specs delete the trades they create and deactivate the instruments they add (neither can be removed through the API; notes cannot be removed at all).
+What it covers: one spec file per endpoint group (settings, instruments, trades with fill/close/cancel, notes, watchlist, bars, sizer with the plan's fixtures, dashboard against the seeded XLE trade, refresh against WireMock, CSV export, OpenAPI), `thresholds.spec.ts` (a Settings change shows on the next call without a refresh), `auth.spec.ts` (every endpoint for every persona: 403 without a sufficient role, 401 for no token, a wrong audience, an expired token, a forged signature), and `mcp.spec.ts` (`/mcp` over Streamable HTTP as the `mcponly` owner: the exact tool set, every tool equal to its REST counterpart, the rules resource, prompts, 401 with `resource_metadata`, 403 for other personas and for the `mcpother` user, the audit log without tokens). `refresh.spec.ts` runs first and loads the canned bars. Specs delete the trades they create and deactivate the instruments they add (neither can be removed through the API; notes cannot be removed at all).
 
 The canned bars come from `scripts/generate-wiremock.mjs` (`yarn generate:wiremock`). If a run is killed, remove the leftover containers before the next run (`docker ps -a` / `podman ps -a`); the ports are fixed. `reuseExistingServer` is on locally, so a stack you started with `dotnet run --project src/Spydersoft.SwingTrade.AppHost --launch-profile Testing` is reused. The suite is also stage `integration_tests` in `.devops/pipeline-ci.yml`.

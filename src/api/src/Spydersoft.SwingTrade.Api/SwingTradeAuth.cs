@@ -22,5 +22,7 @@ public static class SwingTradeAuth
         public const string Write = "Write";
         public const string Admin = "Admin";
         public const string Mcp = "Mcp";
+        /// <summary>The Mcp role plus the configured owner subject. Applied to the /mcp route.</summary>
+        public const string McpOwner = "McpOwner";
     }
 }

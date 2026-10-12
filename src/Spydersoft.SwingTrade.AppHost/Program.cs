@@ -66,6 +66,9 @@ if (mockOidc is not null)
     // The API still validates real tokens (issuer, signature, audience) against this authority's published keys.
     api.WithEnvironment("Auth__Authority", "http://localhost:" + MockOidcPort)
        .WithEnvironment("Auth__RequireHttpsMetadata", "false")
+       // The MCP endpoint is owner-only: the owner is the "mcponly" mock user. "mcpother" holds the mcp role but is not the owner.
+       .WithEnvironment("Mcp__PublicUrl", "http://localhost:" + ApiPort + "/mcp")
+       .WithEnvironment("Mcp__OwnerSubject", MockOidc.McpOwnerSubject)
        .WaitFor(mockOidc);
 }
 

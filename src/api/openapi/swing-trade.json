@@ -253,6 +253,88 @@
         }
       }
     },
+    "/api/v1/mcp/info": {
+      "get": {
+        "tags": [
+          "Mcp"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpInfoDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpInfoDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpInfoDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mcp/calls": {
+      "get": {
+        "tags": [
+          "Mcp"
+        ],
+        "parameters": [
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpCallDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpCallDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/McpCallDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes": {
       "get": {
         "tags": [
@@ -1585,6 +1667,95 @@
           }
         }
       },
+      "McpCallDto": {
+        "required": [
+          "id",
+          "at",
+          "tool",
+          "arguments",
+          "durationMs",
+          "caller",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tool": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "caller": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "McpInfoDto": {
+        "required": [
+          "endpointUrl",
+          "ownerSubject",
+          "addNoteEnabled",
+          "audience",
+          "requiredRole",
+          "addNoteRole"
+        ],
+        "type": "object",
+        "properties": {
+          "endpointUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownerSubject": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "addNoteEnabled": {
+            "type": "boolean"
+          },
+          "audience": {
+            "type": "string"
+          },
+          "requiredRole": {
+            "type": "string"
+          },
+          "addNoteRole": {
+            "type": "string"
+          }
+        }
+      },
       "NoteDto": {
         "required": [
           "id",
@@ -2619,6 +2790,9 @@
     },
     {
       "name": "Instruments"
+    },
+    {
+      "name": "Mcp"
     },
     {
       "name": "Notes"

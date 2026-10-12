@@ -49,6 +49,8 @@ const ENDPOINTS: Endpoint[] = [
   { name: "GET /refresh/runs/{id}", method: "GET", path: "/api/v1/refresh/runs/999999", min: "reader", allowed: [404] },
   { name: "POST /refresh", method: "POST", path: "/api/v1/refresh", min: "admin", allowed: [202, 409] },
   { name: "GET /export/trades.csv", method: "GET", path: "/api/v1/export/trades.csv", min: "reader", allowed: [200] },
+  { name: "GET /mcp/info", method: "GET", path: "/api/v1/mcp/info", min: "reader", allowed: [200] },
+  { name: "GET /mcp/calls", method: "GET", path: "/api/v1/mcp/calls", min: "admin", allowed: [200] },
 ];
 
 const call = (ctx: Api["admin"], e: Endpoint) => ctx.fetch(e.path, { method: e.method, data: e.data });
