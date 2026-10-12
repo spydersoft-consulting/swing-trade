@@ -18,7 +18,7 @@ const PLAN_TABLE = [
   "GET /api/v1/notes", "POST /api/v1/notes",
   "GET /api/v1/refresh/runs", "POST /api/v1/refresh", "GET /api/v1/refresh/runs/{id}",
   "GET /api/v1/export/trades.csv",
-  "GET /api/v1/mcp/info", "GET /api/v1/mcp/calls",
+  "GET /api/v1/mcp/info", "GET /api/v1/mcp/calls", "GET /api/v1/auth/info",
 ];
 
 interface OpenApiDoc {

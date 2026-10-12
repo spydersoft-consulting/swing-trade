@@ -51,6 +51,7 @@ const ENDPOINTS: Endpoint[] = [
   { name: "GET /export/trades.csv", method: "GET", path: "/api/v1/export/trades.csv", min: "reader", allowed: [200] },
   { name: "GET /mcp/info", method: "GET", path: "/api/v1/mcp/info", min: "reader", allowed: [200] },
   { name: "GET /mcp/calls", method: "GET", path: "/api/v1/mcp/calls", min: "admin", allowed: [200] },
+  { name: "GET /auth/info", method: "GET", path: "/api/v1/auth/info", min: "reader", allowed: [200] },
 ];
 
 const call = (ctx: Api["admin"], e: Endpoint) => ctx.fetch(e.path, { method: e.method, data: e.data });
@@ -121,4 +122,24 @@ test("health checks need no token", async ({ api }) => {
 
 test("an unknown route is 404 for an authenticated caller and never reveals data", async ({ api }) => {
   expect((await api.admin.get("/api/v1/nothing-here")).status()).toBe(404);
+});
+
+test("GET /auth/info reports each persona's roles and what the UI may offer", async ({ api }) => {
+  const expected: Array<[Persona, string[], boolean, boolean]> = [
+    ["reader", ["swingtrade.reader"], false, false],
+    ["trader", ["swingtrade.trader"], true, false],
+    ["admin", ["swingtrade.admin"], true, true],
+  ];
+  for (const [persona, roles, canWrite, canAdmin] of expected) {
+    const response = await api.as(persona).get("/api/v1/auth/info");
+    expect(response.status(), persona).toBe(200);
+    const info = await response.json();
+    expect(info.roles, persona).toEqual(roles);
+    expect(info.canRead, persona).toBe(true);
+    expect(info.canWrite, persona).toBe(canWrite);
+    expect(info.canAdmin, persona).toBe(canAdmin);
+    expect(info.audience).toBe("swingtrade");
+    expect(info.adminRole).toBe("swingtrade.admin");
+    expect(info.subject, persona).toBeTruthy();
+  }
 });

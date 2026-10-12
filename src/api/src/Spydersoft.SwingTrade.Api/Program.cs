@@ -57,6 +57,13 @@ builder.Services.AddSwingTradeAuthorization();
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// The OpenAPI generator reads the HTTP JSON options, not the MVC ones above. Mirror the wire format there so the document
+// says what the API sends: enums as their names (DECISIONS #19) and numbers as numbers (so the generated client is typed number).
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSwingTradeApplicationServices();

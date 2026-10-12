@@ -149,6 +149,7 @@ public class AuthorizationTests
             (typeof(ExportController), "TradesCsv", SwingTradeAuth.Policies.Read),
             (typeof(McpController), "GetInfo", SwingTradeAuth.Policies.Read),
             (typeof(McpController), "GetCalls", SwingTradeAuth.Policies.Admin),
+            (typeof(AuthController), "GetInfo", SwingTradeAuth.Policies.Read),
         };
         foreach (var (controller, action, policy) in expected)
             Assert.That(PolicyOf(controller, action, HttpMethod.Get), Is.EqualTo(policy), $"{controller.Name}.{action}");

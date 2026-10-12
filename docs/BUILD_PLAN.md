@@ -243,6 +243,7 @@ The API is a thin layer over the rules library: it validates input, loads data, 
 | GET `/api/export/trades.csv` | Trade log export for tax time |
 | GET `/api/mcp/info` | Settings MCP panel: endpoint URL, allowed owner subject, add_note flag (Read) |
 | GET `/api/mcp/calls?take=20` | Settings MCP panel: latest McpCallLog entries (Admin) |
+| GET `/api/auth/info` | Caller identity and roles plus the role, policy and audience names, for the UI (Read; a caller with no role gets 403, which the UI shows as Access not granted) |
 
 Conventions: follow the reference app's error format (ProblemDetails if it has none), return 400 with field errors on validation failure, publish an OpenAPI document, and keep DTOs separate from entities.
 

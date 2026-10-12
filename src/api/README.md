@@ -28,12 +28,13 @@ The ingestion service and the scheduled hosted service are in `Api/Refresh`. The
 
 ## Endpoints and roles
 
-All routes are under `/api/v1` and need a token for audience `swingtrade` with a `role` claim (`docs/IDENTITY_SETUP.md`). Reader: every GET, `POST /sizer`, the CSV export. Trader (includes reader): create, edit, fill, close, cancel and delete trades, add notes, add or edit instruments. Admin (includes trader): `PUT /settings`, `POST /refresh`.
+All routes are under `/api/v1` and need a token for audience `swingtrade` with a `role` claim (`docs/IDENTITY_SETUP.md`). Reader: every GET (including `GET /auth/info`, which tells the web UI who the caller is), `POST /sizer`, the CSV export. Trader (includes reader): create, edit, fill, close, cancel and delete trades, add notes, add or edit instruments. Admin (includes trader): `PUT /settings`, `POST /refresh`.
 
 | Route | Purpose |
 | --- | --- |
 | `GET /watchlist?signal=&sort=` | One row per active ticker with Trend and Signal derived from current Settings, re-entry date, stale flag |
 | `GET /instruments/{ticker}/bars?days=120` | Completed closes with MA20 and MA50 series (max 120) |
+| `GET /auth/info` | The caller's subject, `swingtrade.*` roles, `canRead`/`canWrite`/`canAdmin`, and the role, policy and audience names. 403 for a user with no role |
 | `POST /sizer` | Shares by risk, cap and cash, cost, risk, reward:risk, max entry for the minimum, verdict, warning. Saves nothing |
 | `GET /export/trades.csv` | Trade log with computed fields, for tax time |
 | `GET /dashboard`, `/settings`, `/trades`, `/notes`, `/instruments`, `/refresh/runs` | As in `docs/BUILD_PLAN.md` |
@@ -71,7 +72,7 @@ The committed document is `src/api/openapi/swing-trade.json`. Regenerate it afte
 dotnet build src/api/src/Spydersoft.SwingTrade.Api -p:GenerateOpenApi=true
 ```
 
-A unit test (`ApiSurfaceTests`) fails when the committed file, the controllers and the plan's API table disagree, and the e2e suite checks the served `/openapi/v1.json` against it. The generated TypeScript client is added with the frontend in M6.
+A unit test (`ApiSurfaceTests`) fails when the committed file, the controllers and the plan's API table disagree, and the e2e suite checks the served `/openapi/v1.json` against it. The TypeScript client for the web UI is generated from it (`yarn api:generate` in `src/web/src/swing-trade-ui`, output committed in `src/api/generated`).
 
 ## End-to-end tests (Playwright, through the AppHost)
 
