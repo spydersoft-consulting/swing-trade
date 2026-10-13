@@ -73,3 +73,37 @@ Check:
 ## 5. Schedule
 
 The hosted service runs at 17:30 and 20:30 New York on weekdays and at 08:00 (Tuesday to Saturday) if the latest bar is still missing. The log line "Next Primary refresh at ..." shows the next time. It does not run at startup, so do step 3 once after a first deploy.
+
+## 6. Quick path with the Local profile and the verification script
+
+Use this instead of steps 2 to 4 when you run the AppHost `Local` profile (API on http://localhost:8180, mock IdP on 8210; see `docs/apphost-launch-profiles.md`).
+
+1. Put the keys in the API project's user-secrets (step 1). Local reads them because the API project's `UserSecretsId` is `swing-trade-api`. Replace the fake provider by setting index 0 (`MarketData:Providers:0` = `alpaca`), and index 1 (`tiingo`) only if you want the fallback. Never commit keys.
+2. Start Local: `dotnet run --project src/Spydersoft.SwingTrade.AppHost --launch-profile Local`. If the API exits at startup, a listed provider lacks a secret.
+3. Run the script (it starts nothing; it mints an admin token, triggers `POST /api/v1/refresh`, polls the run, then prints a table):
+   - PowerShell: `./scripts/verify-real-data.ps1` (options: `-NoRefresh`, `-StaleDays 4`, `-TimeoutSec 300`)
+   - bash (needs curl and jq): `scripts/verify-real-data.sh` (`--no-refresh`; env `API`, `IDP`, `STALE_DAYS`)
+   It prints the RefreshRun status, provider and failed-ticker message, then per ticker: as-of date, last close, MA20, MA50, trend, signal, bar count, and flags `BARS<50`, `OLD ASOF`, `STALE`, `NO MA50`, `NO DATA`. Exit code 1 if the run did not succeed, any ticker is flagged, or there are not 12 tickers. (Bar count is read from the bars endpoint, capped at 120.)
+4. Compare with a broker chart (daily candles, plain closes, no dividend adjustment) for at least SPY and two other tickers:
+   - last close and as-of date must equal the broker's last completed session close;
+   - MA20 and MA50 (simple, on close) should agree within a few cents. A larger gap usually means the broker chart includes today's partial bar, uses adjusted closes, or uses a different MA type.
+5. Run the script again with `-NoRefresh`/`--no-refresh` after a second POST: values unchanged and `PriceBars` row count unchanged (idempotent).
+
+### If `feed=sip` is rejected
+
+The run ends `Failed` or `Partial` and `message` names the tickers with an "unavailable" reason (HTTP 403/422 style subscription error from Alpaca, or 429/5xx). With only Alpaca listed, every ticker fails and the table shows no data or `OLD ASOF`. Options, in order:
+
+1. Fallback to Tiingo: create a token, `dotnet user-secrets set "MarketData:Providers:1" "tiingo"` and `"MarketData:Tiingo:Token" "<token>"`, restart, rerun. A covered ticker shows in the message as "XLK via tiingo". Tiingo raw close is used, so values should match the broker to the cent.
+2. IEX for a smoke test only: `dotnet user-secrets set "MarketData:Alpaca:Feed" "iex"`. IEX closes can differ from the official close, so do not sign off MA values on IEX; it only proves the wiring and bar counts.
+3. Record which provider you verified in the table below.
+
+### Results template
+
+Run: date ____ provider ____ feed ____ RefreshRun id ____ status ____ tickersOk ____ / tickersFailed ____
+
+| Ticker | As-of | Last (API) | Last (broker) | MA20 (API) | MA20 (broker) | MA50 (API) | MA50 (broker) | Bars | OK? |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SPY | | | | | | | | | |
+| (other 11 tickers) | | | | | | | | | |
+
+Done when: 12 tickers, none flagged, status `Succeeded`, broker comparison within a few cents for the sampled tickers, second run idempotent.
