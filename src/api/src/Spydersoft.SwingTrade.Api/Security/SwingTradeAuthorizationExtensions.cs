@@ -16,6 +16,7 @@ public static class SwingTradeAuthorizationExtensions
     {
         services.AddOptions();
         services.AddSingleton<IAuthorizationHandler, McpOwnerHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationResultHandler>();
         return services.AddAuthorizationBuilder()
             .AddPolicy(SwingTradeAuth.Policies.Read, p => Build(p, SwingTradeAuth.Roles.Reader, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.Write, p => Build(p, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))

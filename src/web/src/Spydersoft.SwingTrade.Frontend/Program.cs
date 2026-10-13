@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Logging;
 using OidcProxy.Net.ModuleInitializers;
 using OidcProxy.Net.OpenIdConnect;
@@ -28,13 +29,32 @@ if (config != null)
     // Sessions (and the data-protection keys that sign the cookie) live in Redis when it is configured, so they
     // survive pod restarts and deploys. Without it (local dev, tests) OidcProxy falls back to in-memory sessions.
     var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+    var redis = string.IsNullOrWhiteSpace(redisConnectionString) ? null : ConnectionMultiplexer.Connect(redisConnectionString);
     builder.Services.AddOidcProxy(config, options =>
     {
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
+        if (redis is not null)
         {
-            options.ConfigureRedisBackBone(ConnectionMultiplexer.Connect(redisConnectionString));
+            options.ConfigureRedisBackBone(redis);
         }
     });
+
+    if (redis is not null)
+    {
+        // Readiness only (never liveness): without Redis the sessions are gone, so the pod should leave the Service, not restart.
+        // The API is deliberately not a readiness dependency, so an API outage does not cascade into the UI shell.
+        builder.Services.AddHealthChecks().AddAsyncCheck("redis", async () =>
+        {
+            try
+            {
+                await redis.GetDatabase().PingAsync();
+                return HealthCheckResult.Healthy("Redis reachable");
+            }
+            catch (Exception ex)
+            {
+                return HealthCheckResult.Unhealthy("Redis not reachable", ex);
+            }
+        }, tags: ["ready"]);
+    }
 }
 else
 {

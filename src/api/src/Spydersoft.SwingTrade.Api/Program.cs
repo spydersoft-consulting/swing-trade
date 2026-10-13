@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Spydersoft.Platform.Hosting.StartupExtensions;
 using Spydersoft.Platform.Hosting.Telemetry;
 using Spydersoft.SwingTrade.Api;
+using Spydersoft.SwingTrade.Api.Health;
 using Spydersoft.SwingTrade.Api.Mcp;
 using Spydersoft.SwingTrade.Api.Refresh;
 using Spydersoft.SwingTrade.Api.Security;
@@ -40,6 +41,7 @@ builder.AddSpydersoftTelemetry(typeof(Program).Assembly,
        .AddSpydersoftSerilog(true);
 
 var healthCheckOptions = builder.AddSpydersoftHealthChecks();
+builder.Services.AddSwingTradeHealthChecks();
 
 builder.AddNpgsqlDbContext<SwingTradeDbContext>("swingtrade-db");
 
@@ -79,6 +81,8 @@ builder.Services.AddScoped<IngestionService>();
 builder.Services.AddScoped<RefreshService>();
 if (builder.Configuration.GetValue("Refresh:ScheduleEnabled", true))
     builder.Services.AddHostedService<RefreshHostedService>();
+if (builder.Configuration.GetValue("Refresh:RunOnStartupWhenEmpty", false))
+    builder.Services.AddHostedService<StartupRefreshService>();
 
 var app = builder.Build();
 

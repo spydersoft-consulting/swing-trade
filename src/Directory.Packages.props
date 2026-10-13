@@ -3,6 +3,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,11 +12,13 @@
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.5" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.3.5" />
     <PackageVersion Include="Cronos" Version="0.11.1" />
+    <!-- Transitive pin: Aspire.Hosting (AppHost, test/dev only) brings MessagePack 2.5.192, which has published advisories (GHSA-hv8m-jj95-wg3x and others, fixed in 2.5.301). -->
+    <PackageVersion Include="MessagePack" Version="2.5.301" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.*" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.*" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.*" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.8" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.*" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.*" />
