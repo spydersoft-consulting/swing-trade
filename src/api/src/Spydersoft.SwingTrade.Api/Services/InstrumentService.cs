@@ -28,6 +28,7 @@ public partial class InstrumentService(SwingTradeDbContext db)
             errors.Add(nameof(request.Ticker), "Ticker is required and may contain only letters, digits, dot and dash.");
         if (string.IsNullOrWhiteSpace(request.Name))
             errors.Add(nameof(request.Name), "Name is required.");
+        LengthChecks(errors, request.Name, request.Category, request.WashSaleGroup);
         if (errors.Any)
             return errors.ToResult<InstrumentDto>();
 
@@ -60,12 +61,12 @@ public partial class InstrumentService(SwingTradeDbContext db)
         if (instrument is null)
             return ServiceResult<InstrumentDto>.NotFound();
 
+        var errors = new ValidationErrors();
         if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            var errors = new ValidationErrors();
             errors.Add(nameof(request.Name), "Name is required.");
+        LengthChecks(errors, request.Name, request.Category, request.WashSaleGroup);
+        if (errors.Any)
             return errors.ToResult<InstrumentDto>();
-        }
 
         instrument.Name = request.Name.Trim();
         instrument.Category = Clean(request.Category);
@@ -77,6 +78,13 @@ public partial class InstrumentService(SwingTradeDbContext db)
         await db.SaveChangesAsync(ct);
 
         return ServiceResult<InstrumentDto>.Ok(ToDto(instrument));
+    }
+
+    private static void LengthChecks(ValidationErrors errors, string? name, string? category, string? washSaleGroup)
+    {
+        errors.MaxLength("Name", name, 200);
+        errors.MaxLength("Category", category, 100);
+        errors.MaxLength("WashSaleGroup", washSaleGroup, 50);
     }
 
     // Only one instrument can be the benchmark.

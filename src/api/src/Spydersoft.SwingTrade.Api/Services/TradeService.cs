@@ -47,6 +47,7 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         var ticker = InstrumentService.Normalize(request.Ticker);
         await ValidateAsync(errors, new Fields(ticker, request.Status, request.Setup, request.Shares, request.EntryPrice,
             request.StopPrice, request.TargetPrice, request.OpenDate, null, null), ct);
+        errors.MaxLength(nameof(request.Rationale), request.Rationale, 4000);
         if (errors.Any)
             return errors.ToResult<TradeDto>();
 
@@ -82,6 +83,8 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         var ticker = InstrumentService.Normalize(request.Ticker);
         await ValidateAsync(errors, new Fields(ticker, trade.Status, request.Setup, request.Shares, request.EntryPrice,
             request.StopPrice, request.TargetPrice, request.OpenDate, request.ExitPrice, request.ExitDate), ct);
+        errors.MaxLength(nameof(request.Rationale), request.Rationale, 4000);
+        errors.MaxLength(nameof(request.Lessons), request.Lessons, 4000);
         if (errors.Any)
             return errors.ToResult<TradeDto>();
 
@@ -127,6 +130,8 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         var errors = new ValidationErrors();
         if (request.FillPrice <= 0m)
             errors.Add(nameof(request.FillPrice), "Fill price must be greater than zero.");
+        else if (request.FillPrice > MaxPrice)
+            errors.Add(nameof(request.FillPrice), "Fill price is too large.");
         else if (request.FillPrice <= trade.StopPrice)
             errors.Add(nameof(request.FillPrice), "Fill price must be above the stop.");
         if (request.FillDate == default)
@@ -156,6 +161,9 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         var errors = new ValidationErrors();
         if (request.ExitPrice <= 0m)
             errors.Add(nameof(request.ExitPrice), "Exit price must be greater than zero.");
+        else if (request.ExitPrice > MaxPrice)
+            errors.Add(nameof(request.ExitPrice), "Exit price is too large.");
+        errors.MaxLength(nameof(request.Lessons), request.Lessons, 4000);
         if (request.ExitDate == default)
             errors.Add(nameof(request.ExitDate), "Exit date is required.");
         else if (trade.OpenDate is { } open && request.ExitDate < open)
@@ -204,6 +212,7 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
         if (f.Entry <= 0m) e.Add("EntryPrice", "Entry price must be greater than zero.");
         if (f.Stop <= 0m) e.Add("StopPrice", "Stop price must be greater than zero.");
         if (f.Target <= 0m) e.Add("TargetPrice", "Target price must be greater than zero.");
+        CheckMaxPrices(e, f);
         if (f.Entry > 0m && f.Stop > 0m && f.Entry <= f.Stop)
             e.Add("EntryPrice", "Entry must be above the stop.");
 
@@ -227,6 +236,17 @@ public class TradeService(SwingTradeDbContext db, SettingsService settings, Time
             if (f.ExitPrice is not null) e.Add("ExitPrice", "Only a Closed trade has an exit price.");
             if (f.ExitDate is not null) e.Add("ExitDate", "Only a Closed trade has an exit date.");
         }
+    }
+
+    // Prices are numeric(18,4); anything larger would overflow in the database (a 500) instead of a 400.
+    private const decimal MaxPrice = 99_999_999_999_999m;
+
+    private static void CheckMaxPrices(ValidationErrors e, Fields f)
+    {
+        e.MaxAmount("EntryPrice", f.Entry, MaxPrice);
+        e.MaxAmount("StopPrice", f.Stop, MaxPrice);
+        e.MaxAmount("TargetPrice", f.Target, MaxPrice);
+        if (f.ExitPrice is { } x) e.MaxAmount("ExitPrice", x, MaxPrice);
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

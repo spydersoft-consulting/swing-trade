@@ -63,6 +63,11 @@ public class SettingsService(SwingTradeDbContext db)
         if (r.WashSaleWindowDays < 0) e.Add(nameof(r.WashSaleWindowDays), "Wash-sale window cannot be negative.");
         if (r.MaxPositionPct is <= 0m or > 1m) e.Add(nameof(r.MaxPositionPct), "Position cap must be a fraction above 0 and at most 1.");
         if (r.PullbackBandLow > r.PullbackBandHigh) e.Add(nameof(r.PullbackBandLow), "Pullback band low cannot exceed the band high.");
+        e.MaxAmount(nameof(r.StartingCapital), r.StartingCapital, 9_999_999_999_999m);
+        e.MaxAmount(nameof(r.MinRewardRisk), r.MinRewardRisk, 99_999m);
+        e.MaxAmount(nameof(r.PullbackBandHigh), r.PullbackBandHigh, 999m);
+        e.MaxAmount(nameof(r.ExtendedThreshold), r.ExtendedThreshold, 999m);
+        if (r.PullbackBandLow < -999m) e.Add(nameof(r.PullbackBandLow), "Pullback band low cannot be below -999.");
         if (!Enum.IsDefined(r.RiskBasis)) e.Add(nameof(r.RiskBasis), "Unknown risk basis.");
         return e;
     }

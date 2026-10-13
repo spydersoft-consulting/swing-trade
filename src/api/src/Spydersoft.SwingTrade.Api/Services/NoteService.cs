@@ -32,6 +32,8 @@ public class NoteService(SwingTradeDbContext db)
         var errors = new ValidationErrors();
         if (request.Date == default) errors.Add(nameof(request.Date), "Date is required.");
         if (string.IsNullOrWhiteSpace(request.Text)) errors.Add(nameof(request.Text), "Text is required.");
+        errors.MaxLength(nameof(request.Text), request.Text, 4000);
+        errors.MaxLength(nameof(request.Ticker), request.Ticker, 16);
         if (!Enum.IsDefined(request.Kind)) errors.Add(nameof(request.Kind), "Unknown note kind.");
         if (errors.Any)
             return errors.ToResult<NoteDto>();

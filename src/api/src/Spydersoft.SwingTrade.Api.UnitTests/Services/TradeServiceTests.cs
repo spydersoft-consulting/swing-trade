@@ -360,4 +360,28 @@ public class TradeServiceTests
 
         Assert.That(xle.RiskPct, Is.EqualTo(14.10m / 2053.55m));
     }
+
+    [Test]
+    public async Task Create_RejectsOverlongTextAndOversizedPricesAsFieldErrors()
+    {
+        var request = Plan();
+        request.Rationale = new string('x', 4001);
+        request.TargetPrice = 1e20m;
+
+        var result = await _ctx.Trades.CreateAsync(request);
+
+        Assert.That(result.Errors.Keys, Is.SupersetOf(new[] { "Rationale", "TargetPrice" }));
+    }
+
+    [Test]
+    public async Task FillAndClose_RejectOversizedPrices()
+    {
+        var planned = (await _ctx.Trades.CreateAsync(Plan())).Value!;
+        var fill = await _ctx.Trades.FillAsync(planned.Id, new FillTradeRequest { FillPrice = 1e20m, FillDate = new DateOnly(2026, 10, 12) });
+        Assert.That(fill.Errors.Keys, Does.Contain("FillPrice"));
+
+        var open = (await _ctx.Trades.CreateAsync(OpenTrade("XLK", new DateOnly(2026, 10, 1)))).Value!;
+        var close = await _ctx.Trades.CloseAsync(open.Id, new CloseTradeRequest { ExitPrice = 1e20m, ExitDate = new DateOnly(2026, 10, 12), Lessons = new string('y', 4001) });
+        Assert.That(close.Errors.Keys, Is.SupersetOf(new[] { "ExitPrice", "Lessons" }));
+    }
 }

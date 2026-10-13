@@ -134,4 +134,34 @@ public class SettingsInstrumentNoteServiceTests
 
         Assert.That(result.Errors.Keys, Is.SupersetOf(new[] { "Date", "Text" }));
     }
+
+    [Test]
+    public async Task Notes_RejectTextAndTickerLongerThanTheColumn()
+    {
+        var result = await _ctx.Notes.CreateAsync(new CreateNoteRequest { Date = new DateOnly(2026, 10, 12), Text = new string('x', 4001), Ticker = new string('A', 17) });
+
+        Assert.That(result.Errors.Keys, Is.SupersetOf(new[] { "Text", "Ticker" }));
+    }
+
+    [Test]
+    public async Task Instruments_RejectOverlongFieldsOnCreateAndUpdate()
+    {
+        var create = await _ctx.Instruments.CreateAsync(new CreateInstrumentRequest { Ticker = "VTI", Name = new string('n', 201), Category = new string('c', 101) });
+        var update = await _ctx.Instruments.UpdateAsync("XLK", new UpdateInstrumentRequest { Name = "ok", WashSaleGroup = new string('g', 51) });
+
+        Assert.That(create.Errors.Keys, Is.SupersetOf(new[] { "Name", "Category" }));
+        Assert.That(update.Errors.Keys, Does.Contain("WashSaleGroup"));
+    }
+
+    [Test]
+    public async Task Settings_RejectValuesTooLargeForTheirColumns()
+    {
+        var request = ValidSettings();
+        request.StartingCapital = 1e20m;
+        request.MinRewardRisk = 1e6m;
+
+        var result = await _ctx.Settings.UpdateAsync(request);
+
+        Assert.That(result.Errors.Keys, Is.SupersetOf(new[] { "StartingCapital", "MinRewardRisk" }));
+    }
 }
