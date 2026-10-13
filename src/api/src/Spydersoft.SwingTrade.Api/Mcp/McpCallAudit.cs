@@ -134,7 +134,7 @@ public static class McpAuditFilters
     {
         filters.AddCallToolFilter(next => (context, ct) =>
             Recorder(context.Services).RecordAsync(
-                context.Params?.Name ?? "(unknown tool)",
+                McpArgumentSanitizer.CleanText(context.Params?.Name ?? "(unknown tool)"),
                 McpArgumentSanitizer.Sanitize(context.Params?.Arguments),
                 Caller(context.User),
                 () => next(context, ct),
@@ -150,7 +150,7 @@ public static class McpAuditFilters
 
         filters.AddGetPromptFilter(next => (context, ct) =>
             Recorder(context.Services).RecordAsync(
-                "prompt:" + (context.Params?.Name ?? "(unknown)"),
+                "prompt:" + McpArgumentSanitizer.CleanText(context.Params?.Name ?? "(unknown)"),
                 McpArgumentSanitizer.Sanitize(context.Params?.Arguments?.Select(a => new KeyValuePair<string, JsonElement>(a.Key, a.Value))),
                 Caller(context.User),
                 () => next(context, ct),

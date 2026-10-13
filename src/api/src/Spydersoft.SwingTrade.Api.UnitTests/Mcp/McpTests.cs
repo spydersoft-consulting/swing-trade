@@ -666,6 +666,18 @@ public class McpTests
     }
 
     [Test]
+    public async Task ATokenShapedToolName_IsRedactedInTheLog()
+    {
+        await using var host = await StartAsync();
+        var token = Token();
+        await CallAsync(host.CreateClient(), "tools/call", new { name = token }, token);
+
+        var tools = await host.WithDbAsync(db => db.McpCallLogs.AsNoTracking().Select(l => l.Tool).ToListAsync());
+        Assert.That(tools, Is.Not.Empty);
+        Assert.That(string.Join("\n", tools), Does.Not.Contain("eyJ"));
+    }
+
+    [Test]
     public async Task ADeniedRequest_WritesNoLogRow()
     {
         await using var host = await StartAsync();
