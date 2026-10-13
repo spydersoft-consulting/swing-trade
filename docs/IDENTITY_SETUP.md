@@ -114,14 +114,14 @@ Assign `swingtrade.mcp` to the owner. It is independent of the REST roles: it do
 ### Add the custom connector in Claude
 
 1. claude.ai (or Desktop) > Settings > Connectors > Add custom connector.
-2. URL: the value of `Mcp__PublicUrl`, for example `https://swing.mattgerega.net/mcp`.
+2. URL: the value of `Mcp__PublicUrl`, for example `https://swingtrade.mattgerega.com/mcp`.
 3. Open Advanced settings and enter OAuth Client ID `swingtrade-claude-connector` and the client secret.
 4. Connect, sign in at the identity server as the owner, approve. Ask: "What are my pullback candidates and how many shares for each?" (use the `weekly_review` prompt, or read `journal://rules` first).
-5. Claude Code: `claude mcp add --transport http --client-id swingtrade-claude-code swingtrade https://swing.mattgerega.net/mcp` (add `--callback-port <port>` if you registered a fixed redirect), then `/mcp` in a session to authenticate.
+5. Claude Code: `claude mcp add --transport http --client-id swingtrade-claude-code swingtrade https://swingtrade.mattgerega.com/mcp` (add `--callback-port <port>` if you registered a fixed redirect), then `/mcp` in a session to authenticate.
 
 ### Public route in Helm (decision 68)
 
-The UI and REST API stay on the private route. Add a second route on the same hostname, attached to the public gateway, that matches only these paths. Nothing else is reachable from the internet. This repo does not edit the Helm repo; the snippet is for it:
+The UI and REST API stay on the private route. Add a second route on the same hostname, attached to the public gateway, that matches only these paths. Nothing else is reachable from the internet. This is now implemented in `charts/swing-trade` (route `api-mcp`, hostnames and the public gateway are set in `swing-trade-helm-config`; the gateway name is still `TODO(owner)`). The plain snippet is kept for reference:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -133,7 +133,7 @@ spec:
     - name: <public-gateway>            # the internet-facing gateway, not the private one
       namespace: <gateway-namespace>
   hostnames:
-    - swing.mattgerega.net              # same hostname as the UI
+    - swingtrade.mattgerega.com              # same hostname as the UI
   rules:
     - matches:
         - path: { type: PathPrefix, value: /mcp }

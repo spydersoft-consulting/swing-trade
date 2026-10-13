@@ -2,7 +2,7 @@
 
 Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, the reference app wins. Approved by the owner 2026-10-12: project prefix `Spydersoft.SwingTrade`, commit straight to `main` for the first iteration, reuse PitStop's identity provider.
 
-| # | Topic | Plan said | Decision (proposed) | Why |
+| # | Topic | Plan said | Decision | Why |
 | --- | --- | --- | --- | --- |
 | 1 | Test framework | xUnit | NUnit 4 on Microsoft.Testing.Platform | Reference app; CI template uses `testRunner: mtp` |
 | 2 | Frontend data/state | TanStack Query | Redux Toolkit slices + generated hey-api client | Reference app |
@@ -31,21 +31,16 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 - **Identity provider** (`d:\spydersoft\identity`, Duende IdentityServer 8.0.4): no Dynamic Client Registration and no Client ID Metadata Document support is configured. Plan: register a PKCE client for Claude by hand (redirect `https://claude.ai/api/mcp/auth_callback` plus a loopback for Claude Code) and enter its client id in the Claude custom connector's advanced settings. Confirm in M5 that the connector accepts a pre-registered client; otherwise use the static-bearer-token fallback.
 - Duende's DCR is a licensed add-on, so avoid depending on it.
 
-## Open items needing the owner
+## Open items from the early milestones
 
-- Market-data provider: not yet evaluated against current terms and free-tier limits (needs a live web check). Candidates: Alpaca, Tiingo, Alpha Vantage, Stooq. Needed before M3.
-- Public hosting address for `/mcp` (a separate HTTPRoute on the API; the REST API stays behind the BFF). Needed before M5.
-- SonarCloud project key and helm-config layout for `swing-trade-helm-config`. Needed before M7.
-- Pipeline placeholders in `.devops/pipeline-ci.yml` (all marked TODO): SonarCloud project key (`TODO-sonarcloud-project-key`; Sonar is switched off until it exists), container registry and image names, the Helm chart path, and the `swing-trade-helm-config` repository resource. Needed before M7 (M4 only runs build, unit tests and the API integration suite).
-- Build warning NU1903: `Microsoft.AspNetCore.OpenApi` 10.0.8 brings `Microsoft.OpenApi` 2.0.0, which has a published high-severity advisory (GHSA-v5pm-xwqc-g5wc). It was present before M4 and is not yet resolved; revisit when a patched `Microsoft.AspNetCore.OpenApi` ships.
-- Authorization-failure logging (#35) is still not implemented.
+Each item that was open before M7 is resolved or restated in "Status of earlier open items" and "Open items for the owner" at the end of this file.
 
 ## M2 authorization decision (2026-10-12)
 
 | # | Topic | Decision | Why |
 | --- | --- | --- | --- |
 | 34 | Authorization model | Replaces the reference app's scope policies (and "any authenticated user") with role-based policies `Read`, `Write`, `Admin`, `Mcp`. Each requires authenticated user, audience `swingtrade`, a `sub` claim, and a `role` claim: `swingtrade.reader` / `.trader` / `.admin` (admin satisfies trader satisfies reader) and `swingtrade.mcp` (independent). `MapInboundClaims=false`, `RoleClaimType="role"`; role may be one claim or an array. Names live in `SwingTradeAuth`; `Auth:Audience` config removed, only `Auth:Authority` remains. GET = Read; trade create/edit/fill/close/cancel/delete, notes POST, instruments POST/PUT = Write; PUT settings = Admin. No role gives 403. Tests: role matrix, audience/sub/anonymous denial, and a reflection test failing on any controller action without a known `[Authorize(Policy)]`. Identity-server changes are in `docs/IDENTITY_SETUP.md` | Per the new "Authorization and roles" section of the plan; deny by default |
-| 35 | Auth failure logging | Not yet implemented (logging `sub`, path, required policy on 403); to add with the Settings roles screen and `POST /api/refresh` (Admin) | Out of scope of the M2 policy change |
+| 35 | Auth failure logging | Implemented in M7, see #103 (logging `sub`, path and required policy on a refusal) | Was out of scope of the M2 policy change |
 
 ## M2 decisions
 
@@ -94,7 +89,7 @@ Where `docs/BUILD_PLAN.md` and the reference app (PitStop) disagree on tooling, 
 | 49 | Snapshot input | One `IndicatorSnapshot` per ticker per run, for the latest completed stored bar, from the last 50 completed stored closes (so `BarsUsed` is at most 50). Older snapshots are not recomputed | Plan step 4 |
 | 50 | Benchmark refresh | Every instrument flagged `IsBenchmark` is refreshed even if deactivated, and processed first | "SPY is always refreshed" |
 | 51 | Extra endpoint | `GET /api/v1/refresh/runs/{id}` (Read) so a client can poll the run a 202 returned; the list endpoint returns `PagedResult` (`items, totalCount, page, pageSize`, page size clamped to 100) like the reference app | Needed to follow a manual run |
-| 52 | tzdata in the image | `mcr.microsoft.com/dotnet/aspnet:10.0` is Debian-based and ships tzdata, so the Dockerfile is unchanged. Not verified by running the image (no Docker on the build machine); the first container start will show it, since `BarCompletion` throws on a missing zone | DECISIONS #16 |
+| 52 | tzdata in the image | `mcr.microsoft.com/dotnet/aspnet:10.0` is Debian-based and ships tzdata, so the Dockerfile is unchanged. Verified in M7 by running the built image under podman (#108) | DECISIONS #16 |
 
 ## M4 decisions
 
@@ -167,6 +162,67 @@ Items to verify in M5: that Duende emits the audience for the MCP resource (reso
 | 100 | Pipeline | `.devops/pipeline-ci.yml` turns on the UI parameters (`uiEnabled`, source directory, Yarn, coverage and junit paths), publishes the web project alongside the API, runs `yarn install` at the root before the integration stage (the AppHost build runs `yarn build` for the UI), and adds the "Web Integration" suite. UI Sonar and all publish, Helm and helm-config sections stay off or commented until M7. The file has not been run | Brief |
 | 101 | Unit tests | Vitest mocks the `swingTradeApi` module in screen tests, mocks Chart.js (jsdom has no canvas) and checks the dataset values passed to it, and renders screens inside the real router, store, auth context and toast provider. Role-dependent behaviour is tested per persona | Brief |
 
-Items still open after M6 (owner): the Duende client for the BFF (`docs/IDENTITY_SETUP.md` step 3) and its redirect URI; the in-cluster API service name in the BFF's configuration; Redis for BFF sessions in the cluster; the SonarCloud key for the UI.
+## M7 decisions
 
-Still unverified: the real Claude connector, Claude Code, and real Duende token issuance (the `resource` parameter in particular). Also unverified: the BFF against the real identity server (only the mock IdP was used), and the Docker image of the BFF (not built).
+| # | Topic | Decision | Why |
+| --- | --- | --- | --- |
+| 102 | First-run data in Local | New opt-in `Refresh:RunOnStartupWhenEmpty` (hosted `StartupRefreshService`): at start, if no `PriceBar` exists, run one refresh through the normal `RefreshService` (trigger `startup`, same lock, same `RefreshRun` row). `appsettings.json` sets it `false`; `appsettings.Development.json` (the Local profile, fake provider) sets it `true`; Testing leaves it off, so the e2e suites still start from an empty price table. It never runs once any bar exists, so restarts do not refresh. DECISIONS #46 stands for deployments: production loads data with `POST /api/v1/refresh` after the first deploy | The seed gives instruments and one trade but no prices, so a fresh clone showed an empty Watchlist |
+| 103 | Authorization-failure logging (resolves #35) | `LoggingAuthorizationResultHandler` wraps the default `IAuthorizationMiddlewareResultHandler`. A refusal that is a 403 logs a Warning with the user's `sub`, the request path and the policy names required by the endpoint metadata; a 401 logs Information with the path and policy. It never reads the Authorization header, so no token can reach the log. Tested with a capturing logger (sub, path and policy present; token absent; 401 and 403 responses unchanged) | Plan: log authorization failures without tokens |
+| 104 | Health checks | The shared library's `HealthCheck` tags were empty arrays, so `/readyz` ran no check at all. `appsettings.json` now sets `LiveTags=live`, `ReadyTags=ready`, `StartupTags=startup`. API readiness has two checks tagged `ready`: `database` (`CanConnectAsync`; Unhealthy, so `/readyz` is 503) and `market-data` (Degraded, still 200, when no snapshot exists or the newest as-of is stale by the Watchlist's rule, `MarketCalendar.IsStale`; never Unhealthy). Nothing is tagged `live`, so a database outage cannot restart the pod. The BFF has the same endpoints; when `Redis:ConnectionString` is set it adds a `redis` ping on `/readyz` only, and does not depend on the API. Tests: `HealthCheckTests` (livez healthy with the database down; readyz healthy, 503, Degraded stale, Degraded empty; run with the shipped appsettings) | Plan: health checks; readiness must include the database |
+| 105 | Dependency advisories | NU1903 on `Microsoft.OpenApi` 2.0.0 is fixed by `Microsoft.AspNetCore.OpenApi` 10.0.12, which requires `Microsoft.OpenApi` 2.12 (patched from 2.7.5). The only other advisories were `MessagePack` 2.5.192 (NU1902 and NU1903) arriving through `Aspire.Hosting` in the AppHost, a local and test tool that is not deployed; `MessagePack` is pinned to 2.5.301 with `CentralPackageTransitivePinningEnabled`. The solution builds with 0 warnings and the OpenAPI document is unchanged | Brief: upgrade if it builds green |
+| 106 | NU1507 | Already fixed in M4: `src/nuget.config` has a `packageSourceMapping` (nuget.org `*`, the spydersoft feed `Spydersoft.*`). The build shows no NU1507 | Verified, nothing to change |
+| 107 | "Starts with one command" | `dotnet run --project src/Spydersoft.SwingTrade.AppHost --launch-profile Local` (podman: `ASPIRE_CONTAINER_RUNTIME=podman`). It starts Postgres, the mock IdP, the API, the BFF (which builds and serves the SPA) and Vite, with seeded data and a first refresh (#102). Prerequisites are in `README.md`: .NET 10, Node 24 with corepack, a container runtime and access to the GitHub Packages feed. No compose file (#4). Followed from a fresh `git clone` of the committed state under podman on 2026-10-12: the API and BFF answered `/livez` 200, the first start ran the `startup` refresh (12 ok), `/readyz` was Healthy, the BFF served the SPA, and a scripted sign-in as `admin` through the mock IdP gave `GET /api/v1/auth/info` with `swingtrade.admin` through the BFF | Done-when criterion of M7 |
+| 108 | Container images | Dockerfiles stay as PitStop's: CI publishes first, the image only does `COPY . /app` on `aspnet:10.0`, port 8080, non-root. `scripts/build-images.sh` and `.ps1` do the same locally (publish both projects, then `docker` or `podman build`; `artifacts/` is git-ignored). Both images were built with podman 6.1.3 and started: the API image ran against Postgres, `/livez` 200, `/readyz` showed `database` Healthy and `market-data` Degraded (empty), `/usr/share/zoneinfo/America/New_York` exists and the scheduler logged the next run as `20:30 -04:00`; the web image served `/livez`, `/readyz`, `/config.js` and the SPA shell. This settles #16 and #52 | Brief: prove the images start and tzdata works |
+| 109 | Helm chart | `charts/swing-trade` copies `charts/pitstop` (bjw-s `common` 4.4.0, the tgz is committed): controllers `api` and `web`; Services `<release>-api` and `<release>-web` on port 80 to 8080; liveness `/livez`, readiness `/readyz`, plus a startup probe on the API (migrations run before it listens). The BFF's API address is computed with the chart helper (`http://<fullname>-api/`), replacing the placeholder of #88. The API has one replica because the refresh lock and schedule are in-process (#48). Routes on one hostname: `web` (private gateway `main`, `/` to the BFF) and `api-mcp` (public gateway, `/mcp` and `/.well-known/oauth-protected-resource` to the api Service), as #68 and the snippet in `IDENTITY_SETUP.md`. The public gateway name is a placeholder that matches no gateway, so the route exposes nothing until the owner sets it. An optional Envoy Gateway `SecurityPolicy` (`mcpAllowlist`, off) restricts the route to `160.79.104.0/21` plus the owner's address. The chart creates no Secret; the contract (`api-secrets`, `web-secrets`) is in its README. `helm lint` and `helm template` pass | Brief; mirror of PitStop |
+| 110 | helm-config repo | `swing-trade-helm-config` mirrors `pitstop-helm-config`: root helmfile and `environments.yaml`, `environments/{test,production}/{values,images}.yaml`, `apps/data` (release `swing-trade-data`: Postgres 17, database `swingtrade`, ExternalSecrets `api-es`, `web-es`, `postgres-secrets-es`) and `apps/swing-trade-app` (release `swing-trade-app`, OCI chart `oci://ghcr.io/spydersoft-consulting/charts/swing-trade`), namespaces `swing-trade-<env>`, host `swingtrade.<environment_hostname>`, the deploy pipeline and `scripts/process-cicd.ps1`. The ConfigMaps carry `Auth__Authority`, `Telemetry__*`, `Mcp__PublicUrl`, `Mcp__EnableAddNote=false` and `MarketData__Providers__0/1=alpaca,tiingo`; `Mcp__OwnerSubject`, the provider keys, the database password, the BFF client and Redis come from Vault through ExternalSecrets (`secrets-k8/swing-trade/<env>/...`). `images.yaml` holds `0.0.0` until the first CI run. `helmfile template` renders the data release in both environments and the app release (with the chart pointed at the local path, since the OCI chart is not published yet) | Brief; mirror of PitStop |
+| 111 | CI | `.devops/pipeline-ci.yml` now publishes: Docker images `ghcr.io/spydersoft-consulting/swing-trade-api` and `swing-trade-web`, the `swing-trade` chart, the `helmfileconfig` repository resource and tags `api=,web=,chart_version=`, the PR / main / tag build shapes, and Sonar for the API/BFF and the UI, all as in PitStop. Publishing is gated on both Playwright suites. The Sonar keys (`spydersoft-consulting_swing-trade`, `spydersoft-consulting_swing-trade-web-ui`) follow PitStop's naming and are marked TODO(owner) until the projects are confirmed. The pipeline has not been run | Brief |
+| 112 | Stale badge | Confirmed end to end, no new test needed: the API flag has API e2e coverage (`watchlist.spec.ts`, `refresh.spec.ts`, `instruments.spec.ts`); the web e2e `watchlist.spec.ts` asserts a stale badge on exactly the rows the API marks stale and a banner with the count, and a newly added ticker (no prices) shows the badge on any day; Vitest covers the badge and banner. The canned bars end 2026-10-09, so on most days the canned set reads stale in the web suite, which the spec accounts for | Brief: confirm or add |
+| 113 | Operations guide | `docs/OPERATIONS.md`: first-deploy checklist, `pg_dump` and `pg_restore` backup and restore with a table of what matters (Trades, JournalNotes, Settings irreplaceable; PriceBars and snapshots re-creatable), refresh and staleness troubleshooting, MCP exposure checklist and security notes, retention (McpCallLog 90 days), key rotation (including that the Postgres init script runs only on an empty volume), known limitations, advisories | Brief |
+| 114 | Repository files | `GitVersion.yml`, `LICENSE` (MIT, Spydersoft Consulting) and `CONTRIBUTING.md` copy PitStop's conventions with the names changed. Husky stays out (#98), and the contributing guide says to run lint-staged and the tests by hand | Reference app |
+
+## Status of earlier open items
+
+| Item | Status |
+| --- | --- |
+| Market-data provider (open before M3) | Resolved: Alpaca primary, Tiingo fallback (#36) |
+| Public hosting address for `/mcp` | Resolved in design (#68, #109): same host as the UI, public route. The public gateway name is still an owner item |
+| SonarCloud key and helm-config layout (before M7) | Layout resolved (#110). Keys are derived and need confirming (owner table) |
+| Pipeline placeholders in `pipeline-ci.yml` | Resolved (#111); the owner-supplied values are marked TODO(owner) |
+| NU1903 `Microsoft.OpenApi` | Resolved (#105) |
+| NU1507 package source mapping | Resolved (#106) |
+| Authorization-failure logging (#35) | Resolved (#103) |
+| Identity clients for Claude (M0 finding, #67, #70) | Decided; the clients still have to be created in the identity repo (owner table) |
+| Duende emits `aud: swingtrade` for the MCP `resource` (M5, #76) | Still open: unverified against the real server |
+| Connector accepts the pre-registered client (M5) | Still open: unverified |
+| Expectancy and drawdown (#14, #32) | Still open: need a formula from the owner |
+| BFF Docker image not built (after M6) | Resolved: built and started (#108) |
+| tzdata in the image not run (#52) | Resolved (#108) |
+| In-cluster API service name in the BFF configuration (#88) | Resolved: computed by the chart helper (#109) |
+| Redis for BFF sessions in the cluster | Wired through the `web-secrets` ExternalSecret and a Redis readiness ping; the shared Redis entry still needs owner confirmation |
+| Duende client for the BFF and its redirect URI | Still open (owner table) |
+| Stale-data badge | Confirmed (#112) |
+
+## Open items for the owner
+
+Every remaining TODO(owner) and what is still unverified. Search the repos for `TODO(owner)` to find the markers.
+
+| # | Item | Where it lives |
+| --- | --- | --- |
+| 1 | Create the Duende client for the BFF (confidential, authorization code, redirect `https://swingtrade.<host>/oauth2/callback`, post-logout `https://swingtrade.<host>/`, scopes including `swingtrade`) and store its id and secret | `docs/IDENTITY_SETUP.md` step 3; Vault `secrets-k8/swing-trade/<env>/auth` (`authority`, `client_id`, `client_secret`); `swing-trade-helm-config/apps/data/charts/swing-trade-data/templates/web-es.yaml` |
+| 2 | Identity server: scope and `ApiResource` `swingtrade`, the four roles, role assignment for the owner | `docs/IDENTITY_SETUP.md` steps 1 to 6 |
+| 3 | Create the two MCP clients (`swingtrade-claude-connector` with a secret, `swingtrade-claude-code` public), keep the connector secret in a password manager, and verify Duende issues `aud: swingtrade` for the RFC 8707 `resource` | `docs/IDENTITY_SETUP.md` (MCP section); decision #76 |
+| 4 | The owner's `sub` for `Mcp__OwnerSubject` (not committed) | Vault `secrets-k8/swing-trade/<env>/mcp` (`owner_subject`); `api-es.yaml` |
+| 5 | Public gateway name and namespace for the `/mcp` route, per environment | `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl` (`route.api-mcp.parentRefs`, TODO(owner)); chart default in `charts/swing-trade/values.yaml` |
+| 6 | Optional source allowlist: enable `mcpAllowlist` and add your own `/32` beside `160.79.104.0/21` (needs the Envoy Gateway `SecurityPolicy` CRD) | same values file; `charts/swing-trade/values.yaml` |
+| 7 | Redis for BFF sessions: confirm swing-trade may use the shared Redis Vault entry (`secrets-k8/redis/nonproduction` or `production`) or give it its own | `web-es.yaml` |
+| 8 | Alpaca key id and secret, Tiingo token | Vault `secrets-k8/swing-trade/<env>/market-data`; `api-es.yaml` |
+| 9 | Postgres credentials (`rootUser`, `rootPassword`, `user`, `password`) | Vault `secrets-k8/swing-trade/<env>/postgres` |
+| 10 | SonarCloud projects `spydersoft-consulting_swing-trade` and `spydersoft-consulting_swing-trade-web-ui` (create or confirm the keys) | `.devops/pipeline-ci.yml`; `src/web/react-sonar-project.properties` |
+| 11 | Azure DevOps: the registry service connection `github-spydersoft-docker`, the GitHub endpoint `spydersoft-gh`, and registering both pipelines | `.devops/pipeline-ci.yml`; `swing-trade-helm-config/.devops/pipeline-deploy.yml` |
+| 12 | Argo CD applications and the `apps/swing-trade` directories in `ops-nonprod-cluster` and `ops-prod-cluster` | `swing-trade-helm-config/.devops/deploy.yml` (TODO(owner)) |
+| 13 | Hostnames `swingtrade.mattgerega.net` (test) and `swingtrade.mattgerega.com` (production) follow PitStop's pattern; confirm | `swing-trade-helm-config/environments/<env>/values.yaml` |
+| 14 | The first CI run replaces the `0.0.0` tags and creates the OCI chart; until then the app release cannot be pulled | `swing-trade-helm-config/environments/<env>/images.yaml` |
+| 15 | Push both repositories (nothing was pushed) | both repos |
+| 16 | Verify with the real systems: the Claude connector and Claude Code, the BFF against the real identity server, the chart and helm-config on the cluster, both pipelines, and `add_note` (unit-tested only) | `docs/OPERATIONS.md` sections 1, 4 and 8 |
+| 17 | Expectancy and drawdown: supply a formula, or leave them out | decisions #14, #32 |
+| 18 | Confirm your own tax bracket for the 27% set-aside assumption | Settings screen |

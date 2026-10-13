@@ -19,3 +19,6 @@ playwright-report/
 
 # Windows reserved-name artifact some tools create
 NUL
+
+# Local image build output (scripts/build-images.*)
+artifacts/

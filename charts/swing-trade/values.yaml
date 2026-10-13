@@ -1,0 +1,179 @@
+defaultPodOptions:
+  imagePullSecrets:
+    - name: cr-spydersoft-github
+
+controllers:
+  main:
+    enabled: false
+  api:
+    enabled: true
+    type: deployment
+    # One replica on purpose: the refresh lock and the schedule live in the process (DECISIONS #48), so a second replica
+    # would run every scheduled refresh twice. Raise it only after moving the lock to the database.
+    replicas: 1
+    revisionHistoryLimit: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/spydersoft-consulting/swing-trade-api
+          pullPolicy: IfNotPresent
+          tag: latest
+        probes:
+          # /livez never touches the database; /readyz includes it (Unhealthy -> 503) and reports stale prices as Degraded (still 200).
+          liveness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /livez
+                port: 8080
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              timeoutSeconds: 1
+              failureThreshold: 3
+          readiness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /readyz
+                port: 8080
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              timeoutSeconds: 1
+              failureThreshold: 3
+          # The API applies EF migrations before it listens, so the first start of a new version can take a while.
+          startup:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /livez
+                port: 8080
+              periodSeconds: 5
+              timeoutSeconds: 1
+              failureThreshold: 36
+  web:
+    enabled: true
+    type: deployment
+    replicas: 1
+    revisionHistoryLimit: 1
+    containers:
+      main:
+        image:
+          repository: ghcr.io/spydersoft-consulting/swing-trade-web
+          pullPolicy: IfNotPresent
+          tag: latest
+        # The BFF reverse-proxies /api/v1 to the api controller's Service within this same release/namespace. bjw-s names
+        # that Service "<fullname>-api", computed here with the chart's own helper instead of hardcoding a literal, so a
+        # release rename cannot silently break it (same approach as PitStop's chart).
+        env:
+          - name: OidcProxySettings__ReverseProxy__Clusters__swingTradeApi__Destinations__destination1__Address
+            value: 'http://{{ include "swing-trade.fullname" . }}-api/'
+        probes:
+          liveness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /livez
+                port: 8080
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              timeoutSeconds: 1
+              failureThreshold: 3
+          readiness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /readyz
+                port: 8080
+              initialDelaySeconds: 0
+              periodSeconds: 10
+              timeoutSeconds: 1
+              failureThreshold: 3
+
+service:
+  main:
+    enabled: false
+  api:
+    enabled: true
+    controller: api
+    nameOverride: api
+    primary: true
+    type: ClusterIP
+    ports:
+      http:
+        enabled: true
+        primary: true
+        port: 80
+        targetPort: 8080
+  web:
+    enabled: true
+    controller: web
+    nameOverride: web
+    primary: true
+    type: ClusterIP
+    ports:
+      http:
+        enabled: true
+        primary: true
+        port: 80
+        targetPort: 8080
+
+route:
+  main:
+    enabled: false
+  # The UI and the REST API (through the BFF). Private gateway only.
+  web:
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      - name: main
+        namespace: envoy-gateway-system
+        group: gateway.networking.k8s.io
+        kind: Gateway
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        backendRefs:
+          - identifier: web
+            port: 80
+  # The only thing published to the internet (DECISIONS #68): /mcp and the OAuth protected-resource metadata, on the SAME
+  # hostname as the UI, attached to a PUBLIC gateway and backed by the api Service directly (not the BFF).
+  # Nothing else on this host is reachable through this route. The caller sets hostnames and the real gateway.
+  api-mcp:
+    enabled: true
+    kind: HTTPRoute
+    parentRefs:
+      # TODO(owner): the internet-facing Gateway (name and namespace). This placeholder matches no gateway, so until it is
+      # replaced the route is simply not accepted and nothing is exposed.
+      - name: TODO-owner-public-gateway
+        namespace: envoy-gateway-system
+        group: gateway.networking.k8s.io
+        kind: Gateway
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /mcp
+          - path:
+              type: PathPrefix
+              value: /.well-known/oauth-protected-resource
+        backendRefs:
+          - identifier: api
+            port: 80
+
+# Optional (off by default): restrict the public MCP route to Anthropic's outbound range (claude.ai, Desktop, mobile) plus
+# your own address for Claude Code. Needs Envoy Gateway's SecurityPolicy CRD. The API's own checks (OAuth token, owner
+# subject, Host allowlist, rate limit) apply either way; this is defence in depth.
+mcpAllowlist:
+  enabled: false
+  cidrs:
+    - 160.79.104.0/21   # Anthropic outbound (claude.ai, Desktop, mobile)
+    # - TODO(owner): your own public address, /32, for Claude Code on your machine
+
+env_name: dev

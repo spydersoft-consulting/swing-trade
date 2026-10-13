@@ -1,21 +1,19 @@
-## Build pipeline for swing-trade. Mirrors PitStop's pipeline-ci.yml, trimmed to what exists at M6:
-## the .NET solution (build + unit tests, which also builds the SPA through the Frontend project), the React UI (lint-free
-## build, Vitest with coverage), and the two Playwright integration suites (API and web) that boot the Aspire AppHost
-## Testing profile. Docker image publish, Helm chart publish and the helm-config bump stay commented below until M7.
+## Build pipeline for swing-trade. Mirrors PitStop's pipeline-ci.yml: one atomic build that builds the solution and the React UI,
+## runs the unit tests, publishes the api and web images and the combined swing-trade OCI chart from one build number, bumps
+## swing-trade-helm-config (test), and runs the two Playwright suites (API and web) that gate the publish.
 ##
-## TODO (owner, see docs/DECISIONS.md "Open items"): SonarCloud project key/name, the swing-trade-helm-config
-## repository layout, container registry and image names. Placeholders below are marked TODO.
+## TODO(owner), see docs/DECISIONS.md "Open items for the owner": the SonarCloud projects (keys below follow PitStop's
+## naming and must exist before the first analysis), the container registry service connection, and the GitHub endpoint.
 resources:
   repositories:
     - repository: templates
       type: github
       endpoint: spydersoft-gh
       name: spydersoft-consulting/azure-devops-templates
-    # TODO(M7): enable once swing-trade-helm-config has its layout and the pipeline should bump the test environment.
-    # - repository: helmfileconfig
-    #   type: github
-    #   endpoint: spydersoft-gh
-    #   name: spydersoft-consulting/swing-trade-helm-config
+    - repository: helmfileconfig
+      type: github
+      endpoint: spydersoft-gh
+      name: spydersoft-consulting/swing-trade-helm-config
 
 trigger:
   tags:
@@ -58,10 +56,10 @@ stages:
       testProjects: "**/*.UnitTests/*.csproj"
       testRunner: mtp
 
-      # TODO(owner): create the SonarCloud project and fill in its key, then set executeSonar/useSonarCloud to true.
-      sonarProjectKey: TODO-sonarcloud-project-key
+      # TODO(owner): create (or confirm) the SonarCloud project with this key; it must exist before executeSonar runs.
+      sonarProjectKey: spydersoft-consulting_swing-trade
       sonarProjectName: swing-trade
-      useSonarCloud: false
+      useSonarCloud: true
       sonarCloudOrganization: spydersoft-consulting
       sonarEndpointName: sonarcloud-spydersoft
       sonarExtraProperties: |
@@ -69,7 +67,7 @@ stages:
         sonar.scanner.scanAll=false
         sonar.coverage.exclusions=**/Program.cs
 
-      # The React UI (a yarn workspace member, like PitStop's). Sonar for the UI stays off with the C# analysis.
+      # The React UI (a yarn workspace member, like PitStop's). The UI has its own SonarCloud project (key in src/web/react-sonar-project.properties).
       uiEnabled: true
       uiSourceDirectory: src/web/src/swing-trade-ui
       uiNodeVersion: "24.x"
@@ -77,46 +75,69 @@ stages:
       uiCodeCoverageFile: src/web/src/swing-trade-ui/output/coverage/cobertura-coverage.xml
       uiUnitTestFile: src/web/src/swing-trade-ui/output/test/junit.xml
       uiSonarEndpointName: sonarcloud-spydersoft
-      uiUseSonarCloud: false
+      uiUseSonarCloud: true
       uiSonarCloudOrganization: spydersoft-consulting
       uiSonarConfigFile: src/web/react-sonar-project.properties
 
-      # TODO(M7): image names, registry and chart. Publishing stays off until they exist.
-      # containerRegistryName: github-spydersoft-docker
-      # dockerImages:
-      #   - name: api
-      #     dockerImageName: spydersoft-consulting/swing-trade-api
-      #     dockerFilePath: src/api/src/Spydersoft.SwingTrade.Api/Dockerfile
-      #     artifactName: swingTradeApi
-      #     artifactZipName: Spydersoft.SwingTrade.Api
-      #   - name: web
-      #     dockerImageName: spydersoft-consulting/swing-trade-web
-      #     dockerFilePath: src/web/Dockerfile
-      #     artifactName: swingTradeWeb
-      #     artifactZipName: Spydersoft.SwingTrade.Frontend
-      # helmCharts:
-      #   - name: swing-trade
-      #     chartPath: charts/swing-trade
-      # helmfileRepoName: helmfileconfig
-      # helmTagsCollection: "api=$(build.buildnumber),web=$(build.buildnumber),chart_version=$(build.buildnumber)"
+      # TODO(owner): containerRegistryName is the Azure DevOps Docker registry service connection PitStop uses (ghcr.io).
+      containerRegistryName: github-spydersoft-docker
+      dockerImages:
+        - name: api
+          dockerImageName: spydersoft-consulting/swing-trade-api
+          dockerFilePath: src/api/src/Spydersoft.SwingTrade.Api/Dockerfile
+          artifactName: swingTradeApi
+          artifactZipName: Spydersoft.SwingTrade.Api
+        - name: web
+          dockerImageName: spydersoft-consulting/swing-trade-web
+          dockerFilePath: src/web/Dockerfile
+          artifactName: swingTradeWeb
+          artifactZipName: Spydersoft.SwingTrade.Frontend
 
-      # Serial chain once publishing exists: Build -> integration_tests -> docker_publish/chart_publish -> updateHelmConfig.
-      # Images and the chart only publish if the Playwright suite passes. (PitStop wires these the same way.)
-      # dockerPublishDependsOn:
-      #   - integration_tests
-      # chartPublishDependsOn:
-      #   - integration_tests
-      # updateHelmConfigDependsOn:
-      #   - docker_publish
-      #   - chart_publish
+      helmCharts:
+        - name: swing-trade
+          chartPath: charts/swing-trade
 
-      updateHelmConfig: false
-      buildAndPublishDockerImages: false
-      buildAndPublishHelmCharts: false
-      executeSonar: false
-      uiExecuteSonar: false
+      helmfileRepoName: helmfileconfig
 
-  # Playwright suites under src/api/tests and src/web/tests. Each suite boots the Aspire AppHost Testing profile itself
+      # Serial chain: Build -> integration_tests -> docker_publish/chart_publish -> updateHelmConfig.
+      # Images and the chart (and therefore the helm/deploy bump) only happen if the Playwright suites pass.
+      dockerPublishDependsOn:
+        - integration_tests
+      chartPublishDependsOn:
+        - integration_tests
+      updateHelmConfigDependsOn:
+        - docker_publish
+        - chart_publish
+
+      # Three build shapes (same as PitStop):
+      #  - PR: build/test/sonar only, no publish, no helm-config update.
+      #  - main: beta build (GitVersion tags X.Y.Z-beta.<n> per GitVersion.yml) -> publish images+chart, update
+      #    swing-trade-helm-config's test environment.
+      #  - anything else (a tag push): release build (unlabeled X.Y.Z) -> publish, also update test; the deploy pipeline in
+      #    swing-trade-helm-config promotes an unlabeled release to production. No Sonar re-analysis.
+      ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+        updateHelmConfig: false
+        buildAndPublishDockerImages: false
+        buildAndPublishHelmCharts: false
+        executeSonar: true
+        uiExecuteSonar: true
+      ${{ elseif eq(variables['Build.SourceBranchName'], 'main') }}:
+        updateHelmConfig: true
+        buildAndPublishDockerImages: true
+        buildAndPublishHelmCharts: true
+        executeSonar: true
+        uiExecuteSonar: true
+      ${{ else }}:
+        updateHelmConfig: true
+        buildAndPublishDockerImages: true
+        buildAndPublishHelmCharts: true
+        executeSonar: false
+        uiExecuteSonar: false
+
+      helmTagsCollection: "api=$(build.buildnumber),web=$(build.buildnumber),chart_version=$(build.buildnumber)"
+
+  # Playwright suites under src/api/tests and src/web/tests. docker_publish and chart_publish are pointed at this stage (above).
+  # Each suite boots the Aspire AppHost Testing profile itself
   # through Playwright's webServer (Postgres, mock OIDC, WireMock for Alpaca/Tiingo, the API and the web BFF). That needs .NET 10 and a
   # container runtime on the agent; ubuntu-latest hosted images ship Docker, which is all the AppHost needs
   # (podman is a local-development substitution: ASPIRE_CONTAINER_RUNTIME=podman).

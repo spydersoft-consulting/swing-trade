@@ -1,0 +1,14 @@
+apiVersion: v2
+name: swing-trade
+description: "Swing Trade: swing-trading journal and screener (app controllers: api, web)"
+
+type: application
+
+version: 0.1.0
+
+appVersion: "0.0.0"
+
+dependencies:
+- name: common
+  version: 4.4.0
+  repository: https://bjw-s-labs.github.io/helm-charts
