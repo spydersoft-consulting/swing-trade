@@ -58,7 +58,7 @@ stages:
 
       # TODO(owner): create (or confirm) the SonarCloud project with this key; it must exist before executeSonar runs.
       sonarProjectKey: spydersoft-consulting_swing-trade
-      sonarProjectName: swing-trade
+      sonarProjectName: Swing Trade
       useSonarCloud: true
       sonarCloudOrganization: spydersoft-consulting
       sonarEndpointName: sonarcloud-spydersoft
