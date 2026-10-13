@@ -1,12 +1,12 @@
 # Identity server setup for role-based authorization
 
-The Swing Trade API authorizes by role (see "Authorization and roles" in `docs/BUILD_PLAN.md`). The identity server (`auth.mattgerega.net`, Duende IdentityServer, repo `d:\spydersoft\identity`) must be changed to issue the right access token. This repo does not edit the identity repo; apply the changes there.
+The Swing Trade API authorizes by role (see "Authorization and roles" in `docs/BUILD_PLAN.md`). The identity server (`auth.mattgerega.net` for test and `auth.mattgerega.com` for production, Duende IdentityServer, repo `d:\spydersoft\identity`) must be changed to issue the right access token. This repo does not edit the identity repo; apply the changes there. The clients, the `swingtrade` scope and the roles are created in the identity admin UI only (DECISIONS #120). The single code change is the loopback redirect validator in "Client 2" below.
 
 ## What the API expects in the access token
 
 | Claim | Value |
 | --- | --- |
-| `iss` | `https://auth.mattgerega.net` (config `Auth:Authority`) |
+| `iss` | `https://auth.<environment_hostname>` (config `Auth:Authority`): `auth.mattgerega.net` test, `auth.mattgerega.com` production (DECISIONS #116) |
 | `aud` | `swingtrade` (constant `SwingTradeAuth.Audience`; comes from the API resource name) |
 | `sub` | the user's subject id (required) |
 | `role` | one string or an array: `swingtrade.reader`, `swingtrade.trader`, `swingtrade.admin`, and for MCP `swingtrade.mcp` |
@@ -47,9 +47,9 @@ An unauthenticated request gets `401` with `WWW-Authenticate: Bearer resource_me
 
 | Key | Value |
 | --- | --- |
-| `Mcp__PublicUrl` | `https://<public host>/mcp` (absolute, https; becomes the metadata `resource`) |
+| `Mcp__PublicUrl` | `https://swingtrade-mcp.<environment_hostname>/mcp` (absolute, https, the dedicated MCP host; becomes the metadata `resource` verbatim) |
 | `Mcp__OwnerSubject` | the owner's Duende `sub` (find it in the access token or the identity database) |
-| `Mcp__AllowedHosts__0` | optional; the Host header the gateway forwards. Default: the host of `Mcp__PublicUrl` |
+| `Mcp__AllowedHosts__0` | the MCP host (`swingtrade-mcp.<environment_hostname>`); the chart config sets it explicitly. Default if unset: the host of `Mcp__PublicUrl` |
 | `Mcp__EnableAddNote` | `false` (default). `true` registers `add_note`, which then also needs `swingtrade.trader` |
 | `Mcp__RequestsPerMinute` | optional, default 120 for `/mcp` and the metadata routes together |
 | `Auth__Authority` | the issuer, exactly as in Duende's discovery document, no trailing slash |
@@ -78,9 +78,9 @@ new Client
 }
 ```
 
-### Client 2: Claude Code (public, authorization code + PKCE, no secret)
+### Client 2: Claude Code (public, authorization code + PKCE, no secret, port-agnostic loopback)
 
-A separate client so a leaked CLI configuration never exposes the connector's secret (decision 70). It is a native app, so it uses a loopback redirect on a port the CLI picks.
+A separate client so a leaked CLI configuration never exposes the connector's secret (decision 70). It is a native app, so it receives the code on a loopback address with a port the CLI picks at random on every login (RFC 8252 section 7.3). Decision 118: register it port-less and add a custom redirect validator in the identity server. Create the client in the admin UI (decision 120):
 
 ```csharp
 new Client
@@ -91,7 +91,7 @@ new Client
     AllowedGrantTypes = GrantTypes.Code,
     RequirePkce = true,
     AllowPlainTextPkce = false,
-    RedirectUris = { "http://127.0.0.1", "http://localhost" },   // port-agnostic loopback, RFC 8252 section 7.3
+    RedirectUris = { "http://127.0.0.1", "http://localhost" },   // no port
     AllowedScopes = { "swingtrade", "offline_access" },
     AllowOfflineAccess = true,
     AccessTokenLifetime = 3600,
@@ -99,7 +99,160 @@ new Client
 }
 ```
 
-Duende matches redirect URIs exactly, so a loopback port that changes on every login needs one of: (a) a small `IRedirectUriValidator` that, for `127.0.0.1`, `localhost` and `[::1]` only, ignores the port; or (b) a fixed port. Claude Code accepts `--callback-port`, so you can register the exact URI (for example `http://localhost:8765/callback`) and skip the validator. Verify which one your Duende version needs; it was not testable from this repo.
+Duende matches redirect URIs exactly, so without the validator below every login fails with `invalid_redirect_uri` because the port never matches. **The identity server owner must deploy this change before Claude Code login works.** The connector client (`swingtrade-claude-connector`) uses the exact `https://claude.ai/api/mcp/auth_callback` and is unaffected.
+
+#### The validator (identity repo; read-only here, apply it there)
+
+Location: `identity_server/source/Spydersoft.Identity/Services/LoopbackRedirectUriValidator.cs`, namespace `Spydersoft.Identity.Services` (next to `EmailSender.cs`). It extends Duende's `StrictRedirectUriValidator` (Duende.IdentityServer 8.0.4), so every other client keeps the exact-match behaviour. Duende's built-in `StrictRedirectUriValidatorAppAuth` is not used because it applies to all clients and only handles `127.0.0.1`, not `localhost`.
+
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Duende.IdentityServer.Configuration;
+using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Validation;
+
+namespace Spydersoft.Identity.Services
+{
+    /// <summary>
+    /// Accepts loopback redirect URIs on any port (RFC 8252 section 7.3) for the native public clients listed in
+    /// <see cref="LoopbackClientIds"/>. Every other client, and every non-loopback URI, falls through to the strict exact
+    /// match of <see cref="StrictRedirectUriValidator"/>.
+    /// </summary>
+    /// <seealso cref="StrictRedirectUriValidator" />
+    public class LoopbackRedirectUriValidator(IdentityServerOptions options) : StrictRedirectUriValidator(options)
+    {
+        /// <summary>The clients that may use a port-agnostic loopback redirect.</summary>
+        public static readonly IReadOnlySet<string> LoopbackClientIds =
+            new HashSet<string>(StringComparer.Ordinal) { "swingtrade-claude-code" };
+
+        /// <summary>The loopback hosts allowed by RFC 8252 (IPv4, name and IPv6 literal).</summary>
+        private static readonly string[] LoopbackHosts = ["127.0.0.1", "localhost", "[::1]"];
+
+        /// <inheritdoc />
+        public override async Task<bool> IsRedirectUriValidAsync(RedirectUriValidationContext context, CancellationToken ct)
+        {
+            if (await base.IsRedirectUriValidAsync(context, ct))
+            {
+                return true;
+            }
+
+            return IsLoopbackMatch(context.RequestedUri, context.Client);
+        }
+
+        /// <summary>
+        /// True when <paramref name="requestedUri"/> is an http loopback URI whose scheme, host and path equal a registered
+        /// port-less URI; only the port may differ.
+        /// </summary>
+        /// <param name="requestedUri">The redirect_uri of the authorize or token request.</param>
+        /// <param name="client">The client making the request.</param>
+        /// <returns><c>true</c> if the loopback redirect is acceptable.</returns>
+        public static bool IsLoopbackMatch(string? requestedUri, Client client)
+        {
+            if (client is null || !LoopbackClientIds.Contains(client.ClientId))
+            {
+                return false;
+            }
+
+            if (!TryGetLoopback(requestedUri, out Uri? requested) || requested is null)
+            {
+                return false;
+            }
+
+            return client.RedirectUris.Any(registered =>
+                TryGetLoopback(registered, out Uri? reg)
+                && reg is not null
+                && reg.IsDefaultPort
+                && string.Equals(reg.Host, requested.Host, StringComparison.OrdinalIgnoreCase)
+                && (reg.AbsolutePath == "/" || string.Equals(reg.AbsolutePath, requested.AbsolutePath, StringComparison.Ordinal)));
+        }
+
+        private static bool TryGetLoopback(string? value, out Uri? uri)
+        {
+            uri = null;
+            if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? parsed)
+                || parsed.Scheme != Uri.UriSchemeHttp
+                || !string.IsNullOrEmpty(parsed.UserInfo)
+                || !string.IsNullOrEmpty(parsed.Query)
+                || !string.IsNullOrEmpty(parsed.Fragment)
+                || !LoopbackHosts.Contains(parsed.Host, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            uri = parsed;
+            return true;
+        }
+    }
+}
+```
+
+A registered path of `/` (what `http://127.0.0.1` parses to) accepts any path on that host, for example Claude Code's `/callback`; a registered path other than `/` must match exactly. The scheme must be `http`, so a remote host, `https`, userinfo, a query or a fragment never matches.
+
+Register it in `identity_server/source/Spydersoft.Identity/Program.cs`, in the `builder.Services.AddIdentityServer(...)` chain that starts around line 151, after the `AddOperationalStore(...)` call (the chain ends at the closing `});` of its options lambda). The exact line to add:
+
+```csharp
+    .AddRedirectUriValidator<LoopbackRedirectUriValidator>();
+```
+
+so the end of the chain reads `... options.TokenCleanupInterval = 30;` `})` then `.AddRedirectUriValidator<LoopbackRedirectUriValidator>();`. `Program.cs` already has `using Spydersoft.Identity.Services;`. Only the `;` moves from the `AddOperationalStore` call to the new line.
+
+Unit-test sketch, in `identity_server/source/Spydersoft.Identity.Tests/LoopbackRedirectUriValidatorTests.cs` (NUnit, as `OptionsTests.cs`; the test project already references the identity project, which brings Duende in). Check that your Duende version lets you set `RedirectUriValidationContext.RequestedUri` and `.Client`; the static `IsLoopbackMatch` can be tested without the context:
+
+```csharp
+using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Validation;
+
+using Spydersoft.Identity.Services;
+
+namespace Spydersoft.identity.tests
+{
+    public class LoopbackRedirectUriValidatorTests
+    {
+        private static Client CodeClient(string id = "swingtrade-claude-code") => new()
+        {
+            ClientId = id,
+            RedirectUris = { "http://127.0.0.1", "http://localhost" },
+        };
+
+        [TestCase("http://127.0.0.1:54321/callback")]
+        [TestCase("http://127.0.0.1:1/callback")]
+        [TestCase("http://localhost:61234/callback")]
+        [TestCase("http://localhost/callback")]
+        public void LoopbackOnAnyPort_IsAccepted(string uri) =>
+            Assert.That(LoopbackRedirectUriValidator.IsLoopbackMatch(uri, CodeClient()), Is.True);
+
+        [TestCase("https://127.0.0.1:54321/callback")]          // scheme
+        [TestCase("http://evil.example:54321/callback")]        // host
+        [TestCase("http://127.0.0.1.evil.example/callback")]    // host suffix
+        [TestCase("http://user@127.0.0.1:54321/callback")]      // userinfo
+        [TestCase("http://127.0.0.1:54321/callback?x=1")]       // query
+        [TestCase("http://[::1]:54321/callback")]               // not registered
+        [TestCase("not a uri")]
+        [TestCase("")]
+        public void NonLoopbackOrUnregistered_IsRejected(string uri) =>
+            Assert.That(LoopbackRedirectUriValidator.IsLoopbackMatch(uri, CodeClient()), Is.False);
+
+        [Test]
+        public void OtherClients_StillNeedAnExactMatch() =>
+            Assert.That(LoopbackRedirectUriValidator.IsLoopbackMatch("http://127.0.0.1:54321/callback", CodeClient("swingtrade-web")), Is.False);
+
+        [Test]
+        public async Task ExactRegisteredUri_StillPassesTheStrictBase()
+        {
+            var validator = new LoopbackRedirectUriValidator(new Duende.IdentityServer.Configuration.IdentityServerOptions());
+            var client = CodeClient();
+            var ok = await validator.IsRedirectUriValidAsync(
+                new RedirectUriValidationContext { RequestedUri = "http://127.0.0.1", Client = client }, CancellationToken.None);
+            Assert.That(ok, Is.True);
+        }
+    }
+}
+```
 
 ### API resource and scope
 
@@ -114,33 +267,35 @@ Assign `swingtrade.mcp` to the owner. It is independent of the REST roles: it do
 ### Add the custom connector in Claude
 
 1. claude.ai (or Desktop) > Settings > Connectors > Add custom connector.
-2. URL: the value of `Mcp__PublicUrl`, for example `https://swingtrade.mattgerega.com/mcp`.
+2. URL: the value of `Mcp__PublicUrl`, the dedicated MCP host: `https://swingtrade-mcp.mattgerega.com/mcp` (production) or `https://swingtrade-mcp.mattgerega.net/mcp` (test).
 3. Open Advanced settings and enter OAuth Client ID `swingtrade-claude-connector` and the client secret.
 4. Connect, sign in at the identity server as the owner, approve. Ask: "What are my pullback candidates and how many shares for each?" (use the `weekly_review` prompt, or read `journal://rules` first).
-5. Claude Code: `claude mcp add --transport http --client-id swingtrade-claude-code swingtrade https://swingtrade.mattgerega.com/mcp` (add `--callback-port <port>` if you registered a fixed redirect), then `/mcp` in a session to authenticate.
+5. Claude Code: `claude mcp add --transport http --client-id swingtrade-claude-code swingtrade https://swingtrade-mcp.mattgerega.com/mcp`, then `/mcp` in a session to authenticate. No `--callback-port` is needed: the port is chosen per login and the validator above accepts any port. This works only after the identity server owner has deployed the `LoopbackRedirectUriValidator`.
 
-### Public route in Helm (decision 68)
+### Public route in Helm (decision 115, supersedes 68)
 
-The UI and REST API stay on the private route. Add a second route on the same hostname, attached to the public gateway, that matches only these paths. Nothing else is reachable from the internet. This is now implemented in `charts/swing-trade` (route `api-mcp`, hostnames and the public gateway are set in `swing-trade-helm-config`; the gateway name is still `TODO(owner)`). The plain snippet is kept for reference:
+The MCP endpoint has its own hostname, `swingtrade-mcp.<environment_hostname>`, on the existing `main` Gateway in `envoy-gateway-system` (no new gateway). The UI hostname `swingtrade.<environment_hostname>` keeps only the UI/BFF route, with no MCP path, and the BFF does not proxy `/mcp`; login plus roles protect the UI. This is implemented in `charts/swing-trade` (route `api-mcp`), with hostnames set in `swing-trade-helm-config`. The route exposes only `/mcp` and `/.well-known/oauth-protected-resource` (the prefix also covers `/.well-known/oauth-protected-resource/mcp`). The plain snippet is kept for reference:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: swing-trade-api-mcp
+  name: swing-trade-app-api-mcp
 spec:
   parentRefs:
-    - name: <public-gateway>            # the internet-facing gateway, not the private one
-      namespace: <gateway-namespace>
+    - name: main
+      namespace: envoy-gateway-system
   hostnames:
-    - swingtrade.mattgerega.com              # same hostname as the UI
+    - swingtrade-mcp.mattgerega.com          # dedicated MCP host (the UI is swingtrade.mattgerega.com)
   rules:
     - matches:
         - path: { type: PathPrefix, value: /mcp }
         - path: { type: PathPrefix, value: /.well-known/oauth-protected-resource }
       backendRefs:
-        - name: swing-trade-api         # the API service, not the BFF
-          port: 8080
+        - name: swing-trade-app-api          # the API service, not the BFF
+          port: 80
 ```
 
-Optionally restrict the public gateway or a policy attached to this route to Anthropic's outbound range `160.79.104.0/21` (claude.ai, Desktop and mobile) plus your own address for Claude Code. The API also enforces a Host allowlist, a rate limit and the owner check, and sends no CORS headers, so the allowlist is defence in depth, not the only control.
+`Mcp__PublicUrl` must equal `https://swingtrade-mcp.<environment_hostname>/mcp` exactly (it becomes the metadata `resource`) and `Mcp__AllowedHosts__0` must be the MCP host. DNS and a gateway TLS listener are needed for both hostnames in each environment. Public reachability of `mattgerega.net` is unconfirmed; any `*.mattgerega.com` host is reachable, so check `swingtrade-mcp.mattgerega.net` from the internet.
+
+Optional source allowlist (decision 119): the chart's `mcpAllowlist` is off by default. After the connector works, enable it with Anthropic's outbound range `160.79.104.0/21` (claude.ai, Desktop and mobile) plus your own `/32` for Claude Code. The API also enforces a Host allowlist, a rate limit and the owner check, and sends no CORS headers, so the allowlist is defence in depth, not the only control.

@@ -125,7 +125,8 @@ service:
 route:
   main:
     enabled: false
-  # The UI and the REST API (through the BFF). Private gateway only.
+  # The UI and the REST API (through the BFF), on the UI hostname. It has no /mcp and no /.well-known path: the BFF never
+  # proxies MCP (DECISIONS #115). Login plus the swingtrade.* roles protect it; there is no network restriction.
   web:
     enabled: true
     kind: HTTPRoute
@@ -142,16 +143,15 @@ route:
         backendRefs:
           - identifier: web
             port: 80
-  # The only thing published to the internet (DECISIONS #68): /mcp and the OAuth protected-resource metadata, on the SAME
-  # hostname as the UI, attached to a PUBLIC gateway and backed by the api Service directly (not the BFF).
-  # Nothing else on this host is reachable through this route. The caller sets hostnames and the real gateway.
+  # The MCP endpoint (DECISIONS #115, which supersedes #68): a DEDICATED hostname (swingtrade-mcp.<environment_hostname>,
+  # set by the caller) on the same existing "main" Gateway as the UI route, no second gateway. It exposes ONLY /mcp and the
+  # OAuth protected-resource metadata (the second PathPrefix also covers /.well-known/oauth-protected-resource/mcp), and is
+  # backed by the api Service directly, not the BFF. Nothing else on that host is routed.
   api-mcp:
     enabled: true
     kind: HTTPRoute
     parentRefs:
-      # TODO(owner): the internet-facing Gateway (name and namespace). This placeholder matches no gateway, so until it is
-      # replaced the route is simply not accepted and nothing is exposed.
-      - name: TODO-owner-public-gateway
+      - name: main
         namespace: envoy-gateway-system
         group: gateway.networking.k8s.io
         kind: Gateway
@@ -167,13 +167,15 @@ route:
           - identifier: api
             port: 80
 
-# Optional (off by default): restrict the public MCP route to Anthropic's outbound range (claude.ai, Desktop, mobile) plus
-# your own address for Claude Code. Needs Envoy Gateway's SecurityPolicy CRD. The API's own checks (OAuth token, owner
-# subject, Host allowlist, rate limit) apply either way; this is defence in depth.
+# Optional source allowlist on the MCP route. OFF by default (DECISIONS #119): leave it off until the Claude connector works,
+# so a failed first connection is not an address problem. Then set enabled: true with Anthropic's outbound range
+# (160.79.104.0/21: claude.ai, Desktop, mobile) plus your own public address as a /32 for Claude Code on your machine.
+# Needs Envoy Gateway's SecurityPolicy CRD. The API's own checks (OAuth token, owner subject, Host allowlist, rate limit)
+# apply either way; this is defence in depth.
 mcpAllowlist:
   enabled: false
   cidrs:
     - 160.79.104.0/21   # Anthropic outbound (claude.ai, Desktop, mobile)
-    # - TODO(owner): your own public address, /32, for Claude Code on your machine
+    # - <your public address>/32   # add before enabling, for Claude Code on your machine
 
 env_name: dev

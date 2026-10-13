@@ -15,23 +15,23 @@ This chart does **not** own or create any Kubernetes `Secret`. It only reference
 
 `/readyz` on the API includes the database (unreachable is Unhealthy, HTTP 503) and price freshness (stale or empty is Degraded, still 200). `/livez` never touches the database.
 
-Two `HTTPRoute`s, both on the **same hostname** (DECISIONS #68):
+Two `HTTPRoute`s on two hostnames, both attached to the one existing `main` Gateway in `envoy-gateway-system` (as PitStop; no separate public gateway; DECISIONS #115 supersedes #68):
 
-| Route | Gateway | Paths | Backend |
+| Route | Hostname (set by the caller) | Paths | Backend |
 | --- | --- | --- | --- |
-| `web` | private (`main` in `envoy-gateway-system`, as PitStop) | `/` | the BFF, which serves the SPA and forwards `/api/v1` with the user's token |
-| `api-mcp` | **public** (placeholder `TODO-owner-public-gateway`) | `/mcp`, `/.well-known/oauth-protected-resource` | the `api` Service directly |
+| `web` | `swingtrade.<environment_hostname>` | `/` | the BFF, which serves the SPA and forwards `/api/v1` with the user's token |
+| `api-mcp` | `swingtrade-mcp.<environment_hostname>` | `/mcp`, `/.well-known/oauth-protected-resource` (the prefix also covers `/.well-known/oauth-protected-resource/mcp`) | the `api` Service directly |
 
-Nothing else is reachable from the internet. The BFF does not proxy `/mcp` or `/.well-known`. Hostnames and the real public gateway are per-environment and supplied by the caller. The `api-mcp` route ships pointing at a gateway that does not exist, so until the owner replaces it the route is not accepted and nothing is exposed.
+The UI hostname carries no MCP or `.well-known` path and the BFF does not proxy `/mcp`; the MCP hostname routes nothing but those two paths. Login plus the `swingtrade.*` roles protect the UI; there is no network restriction on it.
 
-Optional `mcpAllowlist.enabled=true` adds an Envoy Gateway `SecurityPolicy` on the `api-mcp` route that allows only the listed CIDRs (default `160.79.104.0/21`, Anthropic's outbound range). It needs the Envoy Gateway CRDs and your own address for Claude Code; the API's own checks apply either way.
+Optional `mcpAllowlist.enabled=true` (default **false**) adds an Envoy Gateway `SecurityPolicy` on the `api-mcp` route that allows only the listed CIDRs. Enable it after the connector works, with `160.79.104.0/21` (Anthropic's outbound range) plus your own address as a `/32` for Claude Code. It needs the Envoy Gateway CRDs; the API's own checks apply either way.
 
 ## Values
 
 - `controllers.api.containers.main.image.tag`, `controllers.web.containers.main.image.tag`: image tags.
 - `controllers.*.containers.main.envFrom`: supplied entirely by the caller (every real caller adds its own `configMapRef`s).
 - `route.web.hostnames`, `route.api-mcp.hostnames`: per-environment hostnames; not defaulted.
-- `route.api-mcp.parentRefs`: the public gateway. TODO(owner).
+- `route.web.parentRefs`, `route.api-mcp.parentRefs`: both default to the `main` Gateway in `envoy-gateway-system`.
 - `controllers.web.containers.main.env` **is** defaulted: `OidcProxySettings__ReverseProxy__Clusters__swingTradeApi__Destinations__destination1__Address` is `http://{{ include "swing-trade.fullname" . }}-api/`, computed with the chart's own helper (both controllers always live in one release). Do not hardcode a service name. The helper equals the release name when the release name contains `swing-trade` (the config repo uses `swing-trade-app`), which is also what bjw-s uses for the Service names.
 - `mcpAllowlist.*`: see above.
 
@@ -54,7 +54,7 @@ The caller must create a secret named **`web-secrets`** containing:
 | `OidcProxySettings__Oidc__ClientId`, `OidcProxySettings__Oidc__ClientSecret` | the BFF's confidential client |
 | `Redis__ConnectionString` | Redis for BFF sessions; without it sessions are in memory and die with the pod |
 
-Non-secret configuration (the caller supplies it as ConfigMaps): `Auth__Authority`, `Mcp__PublicUrl` (absolute https, ending in `/mcp`), `Mcp__EnableAddNote`, `MarketData__Providers__0`/`__1` (`alpaca`, `tiingo`), `Telemetry__*`. Neither secret name is hardcoded here: both come from the caller's `envFrom.secretRef.name`.
+Non-secret configuration (the caller supplies it as ConfigMaps): `Auth__Authority`, `Mcp__PublicUrl` (absolute https, ending in `/mcp`, on the dedicated MCP hostname; the metadata `resource` equals it exactly), `Mcp__AllowedHosts__0` (the MCP hostname), `Mcp__EnableAddNote`, `MarketData__Providers__0`/`__1` (`alpaca`, `tiingo`), `Telemetry__*`. Neither secret name is hardcoded here: both come from the caller's `envFrom.secretRef.name`.
 
 ## Rendering locally
 

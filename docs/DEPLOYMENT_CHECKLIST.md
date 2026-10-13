@@ -2,45 +2,46 @@
 
 One ordered runbook for the first deploy of Swing Trade. Nothing here has been run; the build machine had no access to the identity server, Vault, Azure DevOps, Argo CD or DNS. Detail and rationale live in `docs/IDENTITY_SETUP.md`, `docs/OPERATIONS.md` and `docs/DECISIONS.md` ("Open items for the owner"). Do the steps in order; each ends with a PASS check.
 
-Conventions: `<env>` is `test` or `production`. Hosts: test `swingtrade.mattgerega.net`, production `swingtrade.mattgerega.com`. Identity authority: `https://auth.mattgerega.net` for test, and `https://auth.mattgerega.com` for production because `swing-trade-helm-config` builds it as `https://auth.<environment_hostname>` (see decision D1). Do test completely first, then repeat the environment-specific steps for production.
+Conventions: `<env>` is `test` or `production`. Four hostnames (DECISIONS #115, #116):
 
-## Decisions needed from you (recommended defaults)
-
-| ID | Decision | Recommended default | Step |
+| Environment | UI and BFF (login plus roles, no MCP path) | MCP (only `/mcp` and `/.well-known/oauth-protected-resource`) | Identity authority |
 | --- | --- | --- | --- |
-| D1 | Which identity server issues production tokens. `Auth__Authority` is `https://auth.<environment_hostname>`, so production expects `https://auth.mattgerega.com`. | Confirm that issuer exists and serves the same Duende config; if PitStop production uses a different authority, change `Auth__Authority` in `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl` line 9 to match PitStop's. | 1, 2 |
-| D2 | Hostnames (DECISIONS owner item 13) | Keep `swingtrade.mattgerega.net` (test) and `swingtrade.mattgerega.com` (production). | 7 |
-| D3 | Share PitStop's Redis (`secrets-k8/redis/nonproduction`, `/production`) for BFF sessions (owner item 7) | Share it. Sessions are keyed by cookie name `swingtrade.session`; no data of value is stored. Switch only if you want isolation. | 2 |
-| D4 | Public gateway for `/mcp` (owner item 5) | Reuse the existing internet-facing Envoy Gateway if you have one for other public apps. If there is none, do not deploy test publicly yet: use the web UI only and leave `api-mcp` on its placeholder (nothing is exposed). | 7 |
-| D5 | Source allowlist `mcpAllowlist` (owner item 6) | Off for the first connection test (so a failure is not an IP problem), then turn on with `160.79.104.0/21` plus your `/32` once the connector works. | 9 |
-| D6 | Claude Code loopback redirect | Fixed port `http://localhost:8765/callback` and `--callback-port 8765`. This avoids writing an `IRedirectUriValidator` in the identity repo. | 1 |
-| D7 | Register the clients and resources in the identity repo seeder, or only in the admin UI | Admin UI only (the DataSeeder is run by the identity AppHost for local dev; no chart runs it). Add to the seeder too if you want them in source control. | 1 |
-| D8 | Production on a tag (release) only | Yes: push `main` for beta to test, tag `1.0.0` for production (decision in `pipeline-deploy.yml`). | 6, 8 |
-| D9 | Expectancy and drawdown formulas, tax bracket (owner items 17, 18) | Not blocking. Leave out and keep 27% until you review Settings. | 10 |
+| test | `swingtrade.mattgerega.net` | `swingtrade-mcp.mattgerega.net` (public reachability of `.net` unconfirmed) | `https://auth.mattgerega.net` |
+| production | `swingtrade.mattgerega.com` | `swingtrade-mcp.mattgerega.com` | `https://auth.mattgerega.com` |
 
-## Placeholder inventory (every TODO(owner) in both repos)
+Both routes sit on the existing `main` Gateway in `envoy-gateway-system` (no new gateway). Do test completely first, then repeat the environment-specific steps for production.
 
-| # | File and line | What is needed | Step |
+## Decisions (settled by the owner on 2026-10-12; recorded as DECISIONS #115 to #122)
+
+| ID | Decision | Outcome | Step |
 | --- | --- | --- | --- |
-| P1 | `swing-trade/.devops/pipeline-ci.yml:5` (header) | Confirm Sonar keys, registry connection, GitHub endpoint | 4, 5 |
-| P2 | `swing-trade/.devops/pipeline-ci.yml:59` (`sonarProjectKey: spydersoft-consulting_swing-trade`) | SonarCloud project must exist | 4 |
-| P3 | `swing-trade/.devops/pipeline-ci.yml:82` (`containerRegistryName: github-spydersoft-docker`) | Azure DevOps Docker registry service connection | 3 |
-| P4 | `swing-trade/src/web/react-sonar-project.properties:1` (`sonar.projectKey=spydersoft-consulting_swing-trade-web-ui`) | SonarCloud UI project must exist | 4 |
-| P5 | `swing-trade/charts/swing-trade/values.yaml:152-154` (`TODO-owner-public-gateway`) | Chart default; overridden per environment (P8). Leave as is. | 7 |
-| P6 | `swing-trade/charts/swing-trade/values.yaml:177` (`TODO(owner): your own public address, /32`) | Chart comment for the allowlist | 9 |
-| P7 | `swing-trade/charts/swing-trade/README.md:23, 34` and `docs/OPERATIONS.md:17`, `docs/IDENTITY_SETUP.md:124` | Documentation references to the gateway; no edit required, update the wording after step 7 | 7 |
-| P8 | `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl:84-86` (`name: TODO-owner-public-gateway`) | Real public Gateway name and namespace | 7 |
-| P9 | `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl:92` (`mcpAllowlist.enabled: false`) | Enable and add your `/32` after the first successful connect | 9 |
-| P10 | `swing-trade-helm-config/apps/data/charts/swing-trade-data/templates/web-es.yaml:22` | BFF Duende client id and secret in Vault `auth` | 1, 2 |
-| P11 | `swing-trade-helm-config/apps/data/charts/swing-trade-data/templates/web-es.yaml:35` | Confirm shared Redis (D3) | 2 |
-| P12 | `swing-trade-helm-config/.devops/deploy.yml:1` | Argo CD apps and `apps/swing-trade` directories; register `pipeline-deploy.yml` | 3, 6 |
-| P13 | `swing-trade-helm-config/README.md:42` (Owner TODOs section) | Summary of P8, P10, P12 | n/a |
+| D1 | Identity authority | `auth.mattgerega.net` (test) and `auth.mattgerega.com` (production), `https://auth.<environment_hostname>`, as PitStop | 1, 2 |
+| D2 | UI hostnames | `swingtrade.mattgerega.net` and `swingtrade.mattgerega.com` | 7 |
+| D3 | Redis | Share PitStop's (`secrets-k8/redis/nonproduction`, `/production`); cookie `swingtrade.session` | 2 |
+| D4 | MCP hosting (supersedes #68) | Dedicated hosts `swingtrade-mcp.mattgerega.net` and `.com` on the existing `main` gateway; only `/mcp` and the protected-resource metadata; the UI host has no MCP path | 7 |
+| D5 | Source allowlist `mcpAllowlist` | Chart option exists, default OFF; enable with `160.79.104.0/21` plus your `/32` after the connector works | 10 |
+| D6 | Claude Code redirect | Port-agnostic loopback: client registered with `http://127.0.0.1` and `http://localhost`; the identity server needs `LoopbackRedirectUriValidator` deployed first | 1.5 |
+| D7 | Where identity objects live | Identity admin UI only; no seeder change (seeder snippets below are optional and not planned) | 1 |
+| D8 | Release flow | `main` gives a beta to test; a tag such as `1.0.0` gives production | 6, 10 |
+| D9 | Dashboard extras and tax | Expectancy and drawdown left out; 27% tax set-aside kept (editable in Settings) | 8 |
 
-After the steps below, delete each marker you resolved (`grep -rn "TODO.owner" .` in both repos must come back empty except the allowlist comment you chose to leave).
+## Placeholders still open (`TODO(owner)` in both repos)
 
+The gateway, Redis, hostname and allowlist placeholders are resolved. What remains:
+
+| # | File | What is needed | Step |
+| --- | --- | --- | --- |
+| P1 | `swing-trade/.devops/pipeline-ci.yml` (header) | Confirm Sonar keys, registry connection, GitHub endpoint | 3, 4 |
+| P2 | `swing-trade/.devops/pipeline-ci.yml` (`sonarProjectKey: spydersoft-consulting_swing-trade`) | SonarCloud project must exist | 4 |
+| P3 | `swing-trade/.devops/pipeline-ci.yml` (`containerRegistryName: github-spydersoft-docker`) | Azure DevOps Docker registry service connection | 3 |
+| P4 | `swing-trade/src/web/react-sonar-project.properties` (`sonar.projectKey=spydersoft-consulting_swing-trade-web-ui`) | SonarCloud UI project must exist | 4 |
+| P5 | `swing-trade-helm-config/apps/data/charts/swing-trade-data/templates/web-es.yaml` | BFF client id and secret in Vault `auth` (client created in the admin UI) | 1, 2 |
+| P6 | `swing-trade-helm-config/.devops/deploy.yml` | Argo CD apps and `apps/swing-trade` directories; register `pipeline-deploy.yml` | 3, 6 |
+
+After the steps below, delete each marker you resolved (`grep -rn "TODO.owner" .` in both repos must come back empty).
 ## 1. Identity server (repo `d:\spydersoft\identity`, Duende)
 
-Do this on the identity instance for each environment (see D1). Roles and users are created in the admin UI (`Spydersoft.Identity.Admin.Frontend`) or the admin API (`/api/v1/...`, scopes `identity:admin:write`). Clients are not managed by any chart: `DataSeeder` is only run by the AppHost (local), so a client added in source reaches a deployed server only through the admin UI/API or by running the seeder against that database (D7).
+Do this on the identity instance for each environment (D1). Everything is defined in the identity admin UI (`Spydersoft.Identity.Admin.Frontend`) or the admin API (`/api/v1/...`, scopes `identity:admin:write`), per D7: no seeder change. Clients are not managed by any chart (`DataSeeder` only runs in the local AppHost). The one code change in the identity repo is the loopback redirect validator in step 1.5.
 
 ### 1.1 Scope and API resource
 
@@ -56,7 +57,7 @@ POST /api/v1/apiresources/{id}/claims     { "type": "sub" }
 POST /api/v1/apiresources/{id}/claims     { "type": "role" }
 ```
 
-Seeder equivalent (optional, D7). Add to `Spydersoft.Identity.DataSeeder/Seeding/Resources.cs`:
+Seeder equivalent (optional, not planned, D7). Add to `Spydersoft.Identity.DataSeeder/Seeding/Resources.cs`:
 
 ```csharp
 // in ApiScopes
@@ -84,7 +85,7 @@ POST /api/v1/roles { "name": "swingtrade.admin" }
 POST /api/v1/roles { "name": "swingtrade.mcp" }
 ```
 
-(or add `"swingtrade.reader", "swingtrade.trader", "swingtrade.admin", "swingtrade.mcp"` to `Identity.RoleNames` in `Seeding/Identity.cs`.)
+(optional and not planned: or add `"swingtrade.reader", "swingtrade.trader", "swingtrade.admin", "swingtrade.mcp"` to `Identity.RoleNames` in `Seeding/Identity.cs`.)
 
 Assign to your user: `swingtrade.reader`, `swingtrade.trader`, `swingtrade.admin` now. `swingtrade.mcp` can be assigned now too; it is only used by `/mcp`.
 
@@ -121,7 +122,7 @@ Add the secret in the admin UI (it hashes it) and generate the value first:
 openssl rand -base64 36        # this is client_secret; store it in Vault in step 2, never in git
 ```
 
-Seeder equivalent (optional, D7), in `Seeding/Clients.cs` inside `All(...)`; the secret would need a parameter like `adminFrontendClientSecret`, so prefer the admin UI for the secret:
+Seeder equivalent (optional, not planned, D7), in `Seeding/Clients.cs` inside `All(...)`; the secret would need a parameter like `adminFrontendClientSecret`, so prefer the admin UI for the secret:
 
 ```csharp
 new Client
@@ -166,7 +167,7 @@ POST /api/v1/clients/{id}/scopes       { "scope": "offline_access" }
 
 Generate its secret (`openssl rand -base64 36`), add it in the admin UI, and keep the plain value in your password manager only (you type it into Claude in step 9).
 
-### 1.5 Claude Code client (client 3 of 3, public)
+### 1.5 Claude Code client (client 3 of 3, public, port-agnostic loopback, D6)
 
 ```http
 POST /api/v1/clients
@@ -182,12 +183,13 @@ POST /api/v1/clients
   "accessTokenLifetime": 3600
 }
 POST /api/v1/clients/{id}/granttypes   { "grantType": "authorization_code" }
-POST /api/v1/clients/{id}/redirecturis { "redirectUri": "http://localhost:8765/callback" }   // D6
+POST /api/v1/clients/{id}/redirecturis { "redirectUri": "http://127.0.0.1" }    // no port (D6)
+POST /api/v1/clients/{id}/redirecturis { "redirectUri": "http://localhost" }    // no port (D6)
 POST /api/v1/clients/{id}/scopes       { "scope": "swingtrade" }
 POST /api/v1/clients/{id}/scopes       { "scope": "offline_access" }
 ```
 
-If you do not take D6, use `http://127.0.0.1` and `http://localhost` and add the port-ignoring `IRedirectUriValidator` described in `docs/IDENTITY_SETUP.md`.
+Duende matches redirect URIs exactly, and Claude Code picks a random loopback port per login, so the identity server needs the custom validator before this client works. **Identity server owner, do this first:** add `Spydersoft.Identity/Services/LoopbackRedirectUriValidator.cs` to the identity repo (full code and a unit-test sketch in `docs/IDENTITY_SETUP.md`, Client 2), register it with `.AddRedirectUriValidator<LoopbackRedirectUriValidator>()` on the `AddIdentityServer(...)` chain in `Spydersoft.Identity/Program.cs`, run `dotnet test`, and deploy that identity build for each environment. It applies to `swingtrade-claude-code` only; the connector client uses the exact https callback and does not need it. PASS: the manual flow in step 9.1 with any loopback port reaches the login page instead of `invalid_redirect_uri`.
 
 ### 1.6 PASS check
 
@@ -200,7 +202,7 @@ Record your `sub` for step 2 (the `mcp` entry).
 PitStop reads `secrets-k8/pitstop/<env>/postgres|auth|data-api-client|google-places` and `secrets-k8/redis/<nonproduction|production>`; swing-trade follows the same tree. Mount is `secrets-k8` (KV v2, the `vault-backend` ClusterSecretStore). Property names are exactly what the ExternalSecrets reference. Run for `test`, then `production` (separate values for each).
 
 ```sh
-ENV=test            # then production
+ENV=test; DOMAIN=mattgerega.net            # then ENV=production; DOMAIN=mattgerega.com (D1)
 vault kv put secrets-k8/swing-trade/$ENV/postgres \
   rootUser=postgres rootPassword="$(openssl rand -base64 24)" \
   user=swingtrade  password="$(openssl rand -base64 24)"
@@ -211,18 +213,17 @@ vault kv put secrets-k8/swing-trade/$ENV/market-data \
 vault kv put secrets-k8/swing-trade/$ENV/mcp owner_subject='<your sub from step 1.6>'
 
 vault kv put secrets-k8/swing-trade/$ENV/auth \
-  authority='https://auth.mattgerega.net' \
+  authority="https://auth.$DOMAIN" \
   client_id='swingtrade-web' client_secret='<secret from step 1.3 for this environment>'
 ```
 
-Notes: the `auth.authority` value is used by the BFF (`OidcProxySettings__Oidc__Authority`) and must equal the issuer string in the discovery document with no trailing slash; the API's `Auth__Authority` comes from `values.yaml.gotmpl:9`. Redis (D3): nothing to write if sharing; verify the entry exists and has `host` and `password`:
+Notes: the `auth.authority` value is used by the BFF (`OidcProxySettings__Oidc__Authority`) and must equal the issuer string in the discovery document with no trailing slash; the API's `Auth__Authority` comes from `values.yaml.gotmpl` (`https://auth.<environment_hostname>`). Redis (D3, settled: share PitStop's): nothing to write; verify the entry exists and has `host` and `password`:
 
 ```sh
 vault kv get secrets-k8/redis/nonproduction     # test (properties: host, password)
 vault kv get secrets-k8/redis/production
 ```
 
-If you refuse D3, create `secrets-k8/redis/swing-trade-<env>` and change the two `key: secrets-k8/redis/{{ .Values.redis.environment }}` entries in `web-es.yaml` (the `redis_host` and `redis_password` refs) to that key.
 
 Does the Vault policy / ExternalSecrets role cover `secrets-k8/swing-trade/*`? PitStop's does for `secrets-k8/pitstop/*`; if the policy lists paths explicitly, add the new prefix to the same policy (the policy file is in the platform/ops repos, not changed here).
 
@@ -332,36 +333,28 @@ FAIL signals: `ErrImagePull` (GHCR access, step 5.4); ExternalSecret `SecretSync
 
 ## 7. Gateway and DNS
 
-1. The `web` route uses the private gateway `main` in `envoy-gateway-system` (chart default, same as PitStop; no change). Hostname `swingtrade.<environment_hostname>`.
-2. DNS: add `swingtrade.mattgerega.net` the same way `pitstop.mattgerega.net` is published (same target as the private gateway's address; check the record for pitstop and copy it, a CNAME or A to the gateway/load balancer), for the internal view. For the public MCP route the name must also resolve from the internet to the public gateway address: if the private and public gateways share one name, that conflicts, so split-horizon DNS (internal answer = private gateway, public answer = public gateway) is required. TLS: the certificate for `swingtrade.<host>` must be present on both gateways' listeners (cert-manager or a wildcard; PitStop's listener probably uses a wildcard for `*.mattgerega.net`/`.com`).
-3. Public gateway (D4, P8). Find the name:
+Both routes use the existing `main` Gateway in `envoy-gateway-system` (chart default, same as PitStop). There is no second or public gateway to find and no `parentRefs` to edit (D4).
 
-```sh
-kubectl get gateway -A
-```
+1. Hostnames per environment: UI `swingtrade.<environment_hostname>` (the `web` route, `/` to the BFF) and MCP `swingtrade-mcp.<environment_hostname>` (the `api-mcp` route, only `/mcp` and `/.well-known/oauth-protected-resource`). The UI route has no MCP path; login plus roles protect it and no network restriction is wanted.
+2. DNS: four records, published the same way `pitstop.mattgerega.net` / `.com` are (same target as the `main` gateway address; copy PitStop's record, a CNAME or A to the gateway/load balancer):
+   - `swingtrade.mattgerega.net`, `swingtrade-mcp.mattgerega.net` (test)
+   - `swingtrade.mattgerega.com`, `swingtrade-mcp.mattgerega.com` (production)
 
-Pick the internet-facing one and set, in `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl` (lines 84-89):
-
-```yaml
-    parentRefs:
-      - name: <public-gateway-name>
-        namespace: <its-namespace>
-        group: gateway.networking.k8s.io
-        kind: Gateway
-```
-
-If test and production use different public gateways, wrap with the existing environment test used elsewhere in the file: `{{ if ne .Environment.Name "production" }} ... {{ else }} ... {{ end }}`. Remove the TODO comment lines. Commit; the next deploy-pipeline run renders it. The route listener must allow routes from the `swing-trade-<env>` namespace (`allowedRoutes` on the Gateway listener: `namespaces.from: All` or a selector) and must have a listener for the hostname with a TLS certificate.
+   Any `*.mattgerega.com` name is reachable from the internet. Whether `*.mattgerega.net` is published publicly is unconfirmed: from a phone on mobile data run `nslookup swingtrade-mcp.mattgerega.net`. If it does not resolve or connect, the claude.ai connector cannot reach the test MCP endpoint (Claude Code from your own machine still can, if it resolves there); use production for the connector until `.net` is public.
+3. TLS: a certificate for each of the four hostnames must be served by a listener on `main` (cert-manager, or a wildcard as PitStop's listeners likely use for `*.mattgerega.net` and `*.mattgerega.com`). The listener must allow routes from `swing-trade-<env>` (`allowedRoutes.namespaces.from: All` or a matching selector), as PitStop's namespaces already do.
 
 PASS: after sync:
 
 ```sh
 kubectl -n swing-trade-test get httproute            # web and api-mcp
 kubectl -n swing-trade-test get httproute swing-trade-app-api-mcp -o jsonpath='{.status.parents[*].conditions[*].type}{"\n"}'   # Accepted ResolvedRefs, both True
+kubectl -n swing-trade-test get httproute swing-trade-app-api-mcp -o jsonpath='{.spec.hostnames}{"\n"}'                          # ["swingtrade-mcp.mattgerega.net"]
 nslookup swingtrade.mattgerega.net
-curl -sI https://swingtrade.mattgerega.net/livez     # from inside the network: HTTP/2 200 (BFF)
+nslookup swingtrade-mcp.mattgerega.net
+curl -sI https://swingtrade.mattgerega.net/livez     # HTTP/2 200 (BFF)
 ```
 
-Negative check from the public internet (a phone on mobile data): `curl -si https://swingtrade.mattgerega.net/api/v1/trades` and `curl -si https://swingtrade.mattgerega.net/` must NOT return the app or API (404 or no route); `curl -si https://swingtrade.mattgerega.net/.well-known/oauth-protected-resource` must return 200 JSON.
+Negative checks (from the public internet where possible): `curl -si https://swingtrade-mcp.mattgerega.net/` and `curl -si https://swingtrade-mcp.mattgerega.net/api/v1/trades` must return 404 (no route); `curl -si https://swingtrade-mcp.mattgerega.net/.well-known/oauth-protected-resource` must return 200 JSON; and `curl -si -X POST https://swingtrade.mattgerega.net/mcp` must not reach the API (the BFF does not proxy `/mcp`; expect the SPA fallback or 404, never a `WWW-Authenticate: Bearer resource_metadata` challenge).
 
 ## 8. First deploy checks (test)
 
@@ -388,12 +381,12 @@ Run these in order.
    The web `/readyz` includes a Redis ping; failure there is the shared Redis entry (D3, step 2).
 5. Public MCP metadata and challenge (from the internet, PASS values given):
    ```sh
-   curl -si https://swingtrade.mattgerega.net/.well-known/oauth-protected-resource
-   #  HTTP 200; "resource": "https://swingtrade.mattgerega.net/mcp"; "authorization_servers": ["https://auth.mattgerega.net"]
-   curl -si -X POST https://swingtrade.mattgerega.net/mcp -H 'content-type: application/json' -d '{}'
-   #  HTTP 401 with: WWW-Authenticate: Bearer resource_metadata="https://swingtrade.mattgerega.net/.well-known/oauth-protected-resource"
+   curl -si https://swingtrade-mcp.mattgerega.net/.well-known/oauth-protected-resource
+   #  HTTP 200; "resource": "https://swingtrade-mcp.mattgerega.net/mcp"; "authorization_servers": ["https://auth.mattgerega.net"]
+   curl -si -X POST https://swingtrade-mcp.mattgerega.net/mcp -H 'content-type: application/json' -d '{}'
+   #  HTTP 401 with: WWW-Authenticate: Bearer resource_metadata="https://swingtrade-mcp.mattgerega.net/.well-known/oauth-protected-resource"
    ```
-   FAIL: 404 (the route is not accepted: step 7); 421 (Host mismatch: `Mcp__PublicUrl` host differs from the Host header the gateway forwards; set `Mcp__AllowedHosts__0`).
+   FAIL: 404 (the route is not accepted: step 7); 421 (Host mismatch: `Mcp__PublicUrl` host differs from the Host header the gateway forwards; set `Mcp__AllowedHosts__0`; the chart config already sets it to the MCP host).
 6. Review Settings (admin): starting capital, risk, tax rate. They are database rows.
 
 ## 9. Claude connector, Claude Code, and the `aud` check for `resource`
@@ -406,9 +399,9 @@ Uses the Claude Code client (public; redirect from step 1.5). Run in a bash shel
 
 ```sh
 AUTH=https://auth.mattgerega.net
-RES=https://swingtrade.mattgerega.net/mcp
+RES=https://swingtrade-mcp.mattgerega.net/mcp
 CID=swingtrade-claude-code
-REDIR=http://localhost:8765/callback
+REDIR=http://127.0.0.1:8765/callback   # any loopback port: needs the step 1.5 validator
 
 curl -s $AUTH/.well-known/openid-configuration | jq '{issuer, authorization_endpoint, token_endpoint, code_challenge_methods_supported, scopes_supported}'
 
@@ -417,7 +410,7 @@ CHALLENGE=$(printf %s "$VERIFIER" | openssl dgst -sha256 -binary | openssl base6
 echo "$AUTH/connect/authorize?client_id=$CID&response_type=code&scope=swingtrade%20offline_access&redirect_uri=$(printf %s $REDIR | jq -sRr @uri)&code_challenge=$CHALLENGE&code_challenge_method=S256&resource=$(printf %s $RES | jq -sRr @uri)&state=x"
 ```
 
-Open the printed URL in a browser, sign in. The browser lands on `http://localhost:8765/callback?code=...` (a connection error page is fine); copy the `code` value.
+Open the printed URL in a browser, sign in. The browser lands on `http://127.0.0.1:8765/callback?code=...` (a connection error page is fine); copy the `code` value.
 
 ```sh
 CODE='<paste code>'
@@ -441,7 +434,7 @@ FAIL decisions:
 
 ### 9.2 Claude custom connector (claude.ai or Desktop)
 
-1. Settings > Connectors > Add custom connector. URL `https://swingtrade.mattgerega.com/mcp` (production) or the test URL.
+1. Settings > Connectors > Add custom connector. URL `https://swingtrade-mcp.mattgerega.com/mcp` (production) or `https://swingtrade-mcp.mattgerega.net/mcp` (test; the connector needs the host reachable from the internet).
 2. Advanced settings: OAuth Client ID `swingtrade-claude-connector`, client secret from your password manager.
 3. Connect, sign in as the owner, approve.
 4. PASS: ask "What are my pullback candidates and how many shares for each?" and Claude calls the tools and answers with figures matching the Watchlist. Then Settings > MCP panel in the app (admin) lists the calls.
@@ -450,21 +443,21 @@ FAIL decisions:
 ### 9.3 Claude Code
 
 ```sh
-claude mcp add --transport http --client-id swingtrade-claude-code --callback-port 8765 swingtrade https://swingtrade.mattgerega.net/mcp
+claude mcp add --transport http --client-id swingtrade-claude-code swingtrade https://swingtrade-mcp.mattgerega.net/mcp
 claude    # then run /mcp and authenticate swingtrade
 ```
 
-PASS: `/mcp` shows swingtrade connected with its tools. An enabled allowlist (D5) must include your `/32` for this path.
+PASS: `/mcp` shows swingtrade connected with its tools. The port is random per login; if the browser shows `invalid_redirect_uri`, the identity server has not deployed the `LoopbackRedirectUriValidator` yet (step 1.5). An enabled allowlist (D5) must include your `/32` for this path.
 
 ## 10. After it works
 
-1. Allowlist (D5, P9): set `mcpAllowlist.enabled: true` and add your address to `cidrs` in `values.yaml.gotmpl` (lines 92-97), keeping `160.79.104.0/21`. Needs the Envoy Gateway `SecurityPolicy` CRD (`kubectl get crd securitypolicies.gateway.envoyproxy.io`). PASS: the connector and Claude Code still work; a request from another address returns 403 from the gateway.
+1. Allowlist (D5, default off): set `mcpAllowlist.enabled: true` and add your public address as a `/32` to `cidrs` in `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl` (the `mcpAllowlist` block), keeping `160.79.104.0/21`. Needs the Envoy Gateway `SecurityPolicy` CRD (`kubectl get crd securitypolicies.gateway.envoyproxy.io`). PASS: the connector and Claude Code still work; a request from another address returns 403 from the gateway.
 2. Compare MA20 and MA50 for a few tickers with your broker (`docs/M3_MANUAL_CHECK.md`).
 3. Production: tag the release.
    ```sh
    cd swing-trade && git tag 1.0.0 && git push origin 1.0.0
    ```
-   CI builds an unlabeled release and bumps `environments/test/images.yaml`; `swing-trade-deploy` then promotes it (copies `images.yaml` to production) and commits to `ops-prod-cluster`. Repeat steps 1.3 (production URIs), 2, 6, 7, 8 and 9 for production (`swingtrade.mattgerega.com`).
+   CI builds an unlabeled release and bumps `environments/test/images.yaml`; `swing-trade-deploy` then promotes it (copies `images.yaml` to production) and commits to `ops-prod-cluster`. Repeat steps 1.3 (production URIs), 2, 6, 7, 8 and 9 for production (`swingtrade.mattgerega.com` and `swingtrade-mcp.mattgerega.com`).
 4. Take a first backup and test a restore (`docs/OPERATIONS.md` section 2).
 5. Remove resolved `TODO(owner)` markers and update `docs/DECISIONS.md` ("Open items" and #76) with what you verified.
 
@@ -476,7 +469,7 @@ PASS: `/mcp` shows swingtrade connected with its tools. An enabled allowlist (D5
 | Signed in but "Access not granted" | No `swingtrade.*` role in the access token (step 1.2, 1.6) |
 | API pod crash on start | `Mcp__PublicUrl`/`Mcp__OwnerSubject` (step 2 `mcp`), Postgres credentials |
 | ExternalSecret not synced | Vault path/property names (step 2), Vault policy |
-| `/mcp` 404 from the internet | `api-mcp` route not accepted by the public gateway (step 7) |
+| `/mcp` 404 from the internet | `api-mcp` route not accepted by the `main` gateway, or no DNS/TLS for `swingtrade-mcp.<host>` (step 7); `.net` may not be public |
 | `/mcp` 401 `invalid_token` | `iss`/`aud` mismatch (step 9.1) |
 | `/mcp` 403 | `sub` is not the owner or the `swingtrade.mcp` role is missing |
 | Prices stale | `docs/OPERATIONS.md` section 3 |

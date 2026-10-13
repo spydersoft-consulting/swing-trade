@@ -20,7 +20,7 @@ flowchart LR
     BFF -.-> Redis[("Redis sessions<br/>(cluster only)")]
 ```
 
-The browser never holds a token; the BFF does. The API is the only enforcement point: access is by role (`swingtrade.reader`, `.trader`, `.admin`, and `.mcp` for Claude), a valid token without a role gets 403. Only `/mcp` and the OAuth metadata are published to the internet; the UI and REST API stay private (DECISIONS #68).
+The browser never holds a token; the BFF does. The API is the only enforcement point: access is by role (`swingtrade.reader`, `.trader`, `.admin`, and `.mcp` for Claude), a valid token without a role gets 403. Only `/mcp` and the OAuth metadata are routed on a dedicated MCP hostname (`swingtrade-mcp.<host>`, DECISIONS #115); the UI and REST API are on the UI hostname behind login and roles, and the BFF never proxies `/mcp`.
 
 ## Project layout
 
@@ -37,7 +37,7 @@ The browser never holds a token; the BFF does. The API is the only enforcement p
 | `src/web/src/swing-trade-ui` | React 19, Vite, PrimeReact, Tailwind, Redux Toolkit, generated API client |
 | `src/web/tests/web-integration` | Playwright browser suite against the same stack |
 | `src/Spydersoft.SwingTrade.AppHost` | .NET Aspire AppHost: Postgres, mock OIDC, WireMock, API, BFF, Vite |
-| `charts/swing-trade` | Helm chart (bjw-s `common`): `api` and `web` controllers, private UI route, public `/mcp` route |
+| `charts/swing-trade` | Helm chart (bjw-s `common`): `api` and `web` controllers, UI route on `swingtrade.<host>`, MCP route on `swingtrade-mcp.<host>` |
 | `scripts/` | `build-images.sh` / `build-images.ps1` |
 | `.devops/pipeline-ci.yml` | Azure DevOps pipeline |
 | `docs/` | Plan, decisions, operations, identity setup (see the list at the end) |

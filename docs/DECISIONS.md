@@ -115,7 +115,7 @@ Each item that was open before M7 is resolved or restated in "Status of earlier 
 | # | Topic | Decision | Why |
 | --- | --- | --- | --- |
 | 67 | MCP authentication | OAuth 2.0 through the existing identity server (Duende). The app is only a resource server: it serves protected resource metadata (RFC 9728) and validates JWTs. One confidential authorization-code + PKCE client is registered by hand in Duende for the Claude connector (redirect `https://claude.ai/api/mcp/auth_callback`); its client ID and secret go into the connector's Advanced settings, so Dynamic Client Registration is not needed. Access needs the `swingtrade.mcp` role and the configured owner subject. No static-token fallback unless the owner asks later | Owner chose OAuth; Claude's help center lists optional OAuth Client ID/Secret under Advanced settings |
-| 68 | MCP hosting | Same hostname as the UI. The BFF/UI route stays private; a second, public HTTPRoute exposes only `/mcp` and `/.well-known/oauth-protected-resource` (through a public gateway, optionally allowlisting Anthropic's `160.79.104.0/21`). No CORS | Owner choice; smallest public surface |
+| 68 | MCP hosting (SUPERSEDED by #115: dedicated MCP hostname) | Same hostname as the UI. The BFF/UI route stays private; a second, public HTTPRoute exposes only `/mcp` and `/.well-known/oauth-protected-resource` (through a public gateway, optionally allowlisting Anthropic's `160.79.104.0/21`). No CORS | Owner choice; smallest public surface |
 | 69 | add_note | Built, off by default behind a config flag; when on it requires `swingtrade.trader` in addition to `swingtrade.mcp`. It only appends a note | Owner choice |
 | 70 | Claude Code access | A second, public PKCE client (no secret) in Duende for the CLI with a port-agnostic loopback redirect, so a leaked CLI config does not expose the connector's secret. Same role and owner checks apply | Owner choice |
 
@@ -185,7 +185,7 @@ Items to verify in M5: that Duende emits the audience for the MCP resource (reso
 | Item | Status |
 | --- | --- |
 | Market-data provider (open before M3) | Resolved: Alpaca primary, Tiingo fallback (#36) |
-| Public hosting address for `/mcp` | Resolved in design (#68, #109): same host as the UI, public route. The public gateway name is still an owner item |
+| Public hosting address for `/mcp` | Resolved (#115, supersedes #68): dedicated host `swingtrade-mcp.<environment_hostname>` on the existing `main` gateway; the DNS records are still an owner item |
 | SonarCloud key and helm-config layout (before M7) | Layout resolved (#110). Keys are derived and need confirming (owner table) |
 | Pipeline placeholders in `pipeline-ci.yml` | Resolved (#111); the owner-supplied values are marked TODO(owner) |
 | NU1903 `Microsoft.OpenApi` | Resolved (#105) |
@@ -198,31 +198,48 @@ Items to verify in M5: that Duende emits the audience for the MCP resource (reso
 | BFF Docker image not built (after M6) | Resolved: built and started (#108) |
 | tzdata in the image not run (#52) | Resolved (#108) |
 | In-cluster API service name in the BFF configuration (#88) | Resolved: computed by the chart helper (#109) |
-| Redis for BFF sessions in the cluster | Wired through the `web-secrets` ExternalSecret and a Redis readiness ping; the shared Redis entry still needs owner confirmation |
+| Redis for BFF sessions in the cluster | Resolved (#117): the shared PitStop Redis through the `web-secrets` ExternalSecret and a readiness ping; cookie `swingtrade.session` |
 | Duende client for the BFF and its redirect URI | Still open (owner table) |
 | Stale-data badge | Confirmed (#112) |
 
 ## Open items for the owner
 
-Every remaining TODO(owner) and what is still unverified. Search the repos for `TODO(owner)` to find the markers.
+Resolved items are marked; the rest need your hands. Search the repos for `TODO(owner)` to find the remaining markers. Updated 2026-10-12 after the deployment decisions (#115 to #122).
 
-| # | Item | Where it lives |
-| --- | --- | --- |
-| 1 | Create the Duende client for the BFF (confidential, authorization code, redirect `https://swingtrade.<host>/oauth2/callback`, post-logout `https://swingtrade.<host>/`, scopes including `swingtrade`) and store its id and secret | `docs/IDENTITY_SETUP.md` step 3; Vault `secrets-k8/swing-trade/<env>/auth` (`authority`, `client_id`, `client_secret`); `swing-trade-helm-config/apps/data/charts/swing-trade-data/templates/web-es.yaml` |
-| 2 | Identity server: scope and `ApiResource` `swingtrade`, the four roles, role assignment for the owner | `docs/IDENTITY_SETUP.md` steps 1 to 6 |
-| 3 | Create the two MCP clients (`swingtrade-claude-connector` with a secret, `swingtrade-claude-code` public), keep the connector secret in a password manager, and verify Duende issues `aud: swingtrade` for the RFC 8707 `resource` | `docs/IDENTITY_SETUP.md` (MCP section); decision #76 |
-| 4 | The owner's `sub` for `Mcp__OwnerSubject` (not committed) | Vault `secrets-k8/swing-trade/<env>/mcp` (`owner_subject`); `api-es.yaml` |
-| 5 | Public gateway name and namespace for the `/mcp` route, per environment | `swing-trade-helm-config/apps/swing-trade-app/config/values.yaml.gotmpl` (`route.api-mcp.parentRefs`, TODO(owner)); chart default in `charts/swing-trade/values.yaml` |
-| 6 | Optional source allowlist: enable `mcpAllowlist` and add your own `/32` beside `160.79.104.0/21` (needs the Envoy Gateway `SecurityPolicy` CRD) | same values file; `charts/swing-trade/values.yaml` |
-| 7 | Redis for BFF sessions: confirm swing-trade may use the shared Redis Vault entry (`secrets-k8/redis/nonproduction` or `production`) or give it its own | `web-es.yaml` |
-| 8 | Alpaca key id and secret, Tiingo token | Vault `secrets-k8/swing-trade/<env>/market-data`; `api-es.yaml` |
-| 9 | Postgres credentials (`rootUser`, `rootPassword`, `user`, `password`) | Vault `secrets-k8/swing-trade/<env>/postgres` |
-| 10 | SonarCloud projects `spydersoft-consulting_swing-trade` and `spydersoft-consulting_swing-trade-web-ui` (create or confirm the keys) | `.devops/pipeline-ci.yml`; `src/web/react-sonar-project.properties` |
-| 11 | Azure DevOps: the registry service connection `github-spydersoft-docker`, the GitHub endpoint `spydersoft-gh`, and registering both pipelines | `.devops/pipeline-ci.yml`; `swing-trade-helm-config/.devops/pipeline-deploy.yml` |
-| 12 | Argo CD applications and the `apps/swing-trade` directories in `ops-nonprod-cluster` and `ops-prod-cluster` | `swing-trade-helm-config/.devops/deploy.yml` (TODO(owner)) |
-| 13 | Hostnames `swingtrade.mattgerega.net` (test) and `swingtrade.mattgerega.com` (production) follow PitStop's pattern; confirm | `swing-trade-helm-config/environments/<env>/values.yaml` |
-| 14 | The first CI run replaces the `0.0.0` tags and creates the OCI chart; until then the app release cannot be pulled | `swing-trade-helm-config/environments/<env>/images.yaml` |
-| 15 | Push both repositories (nothing was pushed) | both repos |
-| 16 | Verify with the real systems: the Claude connector and Claude Code, the BFF against the real identity server, the chart and helm-config on the cluster, both pipelines, and `add_note` (unit-tested only) | `docs/OPERATIONS.md` sections 1, 4 and 8 |
-| 17 | Expectancy and drawdown: supply a formula, or leave them out | decisions #14, #32 |
-| 18 | Confirm your own tax bracket for the 27% set-aside assumption | Settings screen |
+| # | Item | Status | Where it lives |
+| --- | --- | --- | --- |
+| 1 | Create the Duende client for the BFF (confidential, authorization code, redirect `https://swingtrade.<host>/oauth2/callback`, post-logout `https://swingtrade.<host>/`, scopes including `swingtrade`) and store its id and secret | **Open**: identity admin UI only (#120), then Vault | `docs/IDENTITY_SETUP.md`; Vault `secrets-k8/swing-trade/<env>/auth`; `web-es.yaml` |
+| 2 | Identity server: scope and `ApiResource` `swingtrade`, the four roles, role assignment for the owner | **Open**: identity admin UI only (#120) | `docs/IDENTITY_SETUP.md` |
+| 3 | Create the two MCP clients, keep the connector secret in a password manager, verify `aud: swingtrade` for the RFC 8707 `resource` | **Open**: admin UI (#120). The Claude Code client is a port-agnostic loopback client (#118) | `docs/IDENTITY_SETUP.md` (MCP section); #76 |
+| 3a | Deploy the `LoopbackRedirectUriValidator` change in the identity repo (`AddRedirectUriValidator<T>()`); Claude Code login does not work until it is live. The connector client is unaffected | **Open** (identity server owner) | `docs/IDENTITY_SETUP.md` (Claude Code client) |
+| 4 | The owner's `sub` for `Mcp__OwnerSubject` | **Open** | Vault `secrets-k8/swing-trade/<env>/mcp` |
+| 5 | Gateway for the MCP route | **Resolved** (#115): the existing `main` gateway in `envoy-gateway-system`, dedicated host, no new gateway | chart `route.api-mcp`; helm-config `values.yaml.gotmpl` |
+| 6 | Optional source allowlist (`mcpAllowlist`, `160.79.104.0/21` plus your `/32`) | **Resolved as a decision** (#119): default off, enable after the connector works | `charts/swing-trade/values.yaml` |
+| 7 | Redis for BFF sessions | **Resolved** (#117): shared PitStop Redis; only verify the Vault entries exist | `web-es.yaml` |
+| 8 | Alpaca key id and secret, Tiingo token | **Open** (Vault) | `secrets-k8/swing-trade/<env>/market-data` |
+| 9 | Postgres credentials | **Open** (Vault) | `secrets-k8/swing-trade/<env>/postgres` |
+| 10 | SonarCloud projects `spydersoft-consulting_swing-trade` and `spydersoft-consulting_swing-trade-web-ui` (Sonar keys) | **Open** | `.devops/pipeline-ci.yml`; `src/web/react-sonar-project.properties` |
+| 11 | Azure DevOps: registry connection `github-spydersoft-docker`, GitHub endpoint `spydersoft-gh`, register both pipelines (ADO endpoints and pipelines) | **Open** | both `.devops` folders |
+| 12 | Argo CD applications and the `apps/swing-trade` directories in `ops-nonprod-cluster` and `ops-prod-cluster` | **Open** | `swing-trade-helm-config/.devops/deploy.yml` |
+| 13 | Hostnames and authorities (#116) | **Resolved**: UI `swingtrade.mattgerega.net` / `.com`, authority `auth.mattgerega.net` / `.com` | `environments/<env>/values.yaml` |
+| 13a | DNS records and gateway TLS for the four hostnames: `swingtrade.mattgerega.net`, `swingtrade.mattgerega.com`, `swingtrade-mcp.mattgerega.net`, `swingtrade-mcp.mattgerega.com`. Any `*.mattgerega.com` is reachable; public reachability of `.net` is unconfirmed, so check `swingtrade-mcp.mattgerega.net` from the internet | **Open** | DNS and the `main` gateway listeners |
+| 14 | The first CI run replaces the `0.0.0` tags and creates the OCI chart | **Open** | `environments/<env>/images.yaml` |
+| 15 | Push both repositories (nothing was pushed) | **Open** | both repos |
+| 16 | Verify with the real systems (Claude connector, Claude Code, BFF sign-in, chart on the cluster, pipelines, `add_note`) | **Open** | `docs/DEPLOYMENT_CHECKLIST.md` steps 8 and 9 |
+| 17 | Expectancy and drawdown | **Resolved** (#122): left out | #14, #32 |
+| 18 | The 27% tax set-aside | **Resolved** (#122): kept, editable in Settings | Settings screen |
+
+## Deployment decisions (2026-10-12)
+
+The owner settled the deployment questions. Numbering continues from #114. Decision #115 supersedes #68.
+
+| # | Ref | Topic | Decision | Why |
+| --- | --- | --- | --- | --- |
+| 115 | D4 | MCP hosting (supersedes #68, which kept the UI hostname) | The public MCP route uses a DEDICATED hostname on the existing `main` Gateway in `envoy-gateway-system` (no new gateway): `swingtrade-mcp.mattgerega.net` (test) and `swingtrade-mcp.mattgerega.com` (production); both environments are published. Public reachability of `.net` is unconfirmed; any `*.mattgerega.com` is confirmed reachable. The MCP HTTPRoute exposes ONLY `/mcp` and `/.well-known/oauth-protected-resource` (the prefix also covers the `/mcp` suffixed variant). The UI hostname keeps the UI/BFF route only, with no MCP path, and the BFF does not proxy `/mcp`. Login plus roles protect the UI; no network restriction. `Mcp__PublicUrl` is `https://swingtrade-mcp.<environment_hostname>/mcp` (the metadata `resource` equals it exactly) and `Mcp__AllowedHosts__0` is the MCP host. The `TODO-owner-public-gateway` placeholder is gone: both routes use `main` | Owner choice; the internet-facing surface is a separate host that routes nothing but MCP |
+| 116 | D1, D2 | Authority and UI hostnames | Authority is `https://auth.<environment_hostname>`: `auth.mattgerega.net` (test) and `auth.mattgerega.com` (production), matching PitStop. UI hostnames are `swingtrade.mattgerega.net` (test) and `swingtrade.mattgerega.com` (production) | Owner confirmed |
+| 117 | D3 | Redis | Share PitStop's Redis for BFF sessions (`secrets-k8/redis/nonproduction` and `/production`); cookie name `swingtrade.session` | Owner choice; nothing of value is stored |
+| 118 | D6 | Claude Code redirect | Port-agnostic loopback (RFC 8252). The public PKCE client `swingtrade-claude-code` is registered with `http://127.0.0.1` and `http://localhost` (no port), and the identity server gets a custom `IRedirectUriValidator` (`LoopbackRedirectUriValidator`) that accepts loopback redirects on any port for that client only. It must be deployed before Claude Code login works. The connector client uses the exact `https://claude.ai/api/mcp/auth_callback` and is unaffected. Replaces the fixed-port `8765` approach | Owner choice; no `--callback-port` needed |
+| 119 | D5 | Source allowlist | The `mcpAllowlist` chart option exists and defaults OFF. After the connector works, enable it with `160.79.104.0/21` plus the owner's `/32` | Defence in depth, not a first-connect blocker |
+| 120 | D7 | Where identity objects are defined | Clients, scope and roles are defined in the identity admin UI only. No seeder change; the seeder snippets in the docs are optional and not planned | The seeder runs for local development only |
+| 121 | D8 | Release flow | Beta from `main` to test; a tag (for example `1.0.0`) for production, as in PitStop | Owner choice |
+| 122 | D9 | Dashboard extras and tax | Expectancy and drawdown stay out (#14, #32 stand). The 27% tax set-aside stays, editable in Settings | Owner choice |
