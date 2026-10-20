@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import { PageHeader } from "../layout/PageHeader";
 import { SelectField, TextAreaField, TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
@@ -133,7 +135,7 @@ export const Sizer: React.FC = () => {
                 <Button
                   type="button"
                   label="Create planned trade"
-                  icon="pi pi-check"
+                  icon={<FontAwesomeIcon icon={faCheck} />}
                   loading={saving}
                   disabled={whyNotCreate !== null}
                   onClick={() => void create()}

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faRotateLeft } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import type { SettingsDto } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
 import { ErrorBlock, InlineMessage, LoadingBlock } from "../common/QueryState";
@@ -136,8 +138,14 @@ export const Settings: React.FC = () => {
           {formError && <InlineMessage severity="error">{formError}</InlineMessage>}
           {canAdmin && (
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" label="Save settings" icon="pi pi-check" loading={saving} />
-              <Button type="button" label="Reset to defaults" icon="pi pi-undo" outlined onClick={resetToDefaults} />
+              <Button type="submit" label="Save settings" icon={<FontAwesomeIcon icon={faCheck} />} loading={saving} />
+              <Button
+                type="button"
+                label="Reset to defaults"
+                icon={<FontAwesomeIcon icon={faRotateLeft} />}
+                variant="outlined"
+                onClick={resetToDefaults}
+              />
             </div>
           )}
         </form>

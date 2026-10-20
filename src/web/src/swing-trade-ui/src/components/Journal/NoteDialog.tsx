@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
+import { Button } from "../ui/Button";
 import type { NoteKind } from "../../api/generated/types.gen";
 import { SelectField, TextAreaField, TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
@@ -100,7 +100,7 @@ const NoteForm: React.FC<{ initialKind: NoteKind; onHide: () => void }> = ({ ini
           <InlineMessage severity="error">{formError}</InlineMessage>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" label="Cancel" outlined onClick={onHide} />
+          <Button type="button" label="Cancel" variant="outlined" onClick={onHide} />
           <Button type="submit" label={isPass ? "Record pass" : "Save note"} loading={saving} />
         </div>
       </form>

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus, faRotate } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import type { Signal, WatchlistRowDto } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../common/QueryState";
@@ -71,15 +73,22 @@ export const Watchlist: React.FC = () => {
       {canAdmin && (
         <Button
           label={refreshPhase === "running" ? "Refreshing..." : "Refresh now"}
-          icon="pi pi-refresh"
-          size="small"
-          outlined
+          icon={<FontAwesomeIcon icon={faRotate} />}
+          size="sm"
+          variant="outlined"
           loading={refreshPhase === "running"}
           disabled={refreshPhase === "running"}
           onClick={() => void onRefresh()}
         />
       )}
-      {canWrite && <Button label="Add ticker" icon="pi pi-plus" size="small" onClick={() => setAddOpen(true)} />}
+      {canWrite && (
+        <Button
+          label="Add ticker"
+          icon={<FontAwesomeIcon icon={faPlus} />}
+          size="sm"
+          onClick={() => setAddOpen(true)}
+        />
+      )}
     </>
   );
 

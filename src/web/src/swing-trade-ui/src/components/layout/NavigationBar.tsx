@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBars, faChartLine, faRightFromBracket, faRightToBracket, faUser } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Sidebar } from "primereact/sidebar";
 import { useAuth, usePageTitle } from "../../context";
@@ -26,7 +28,7 @@ const AccountSection: React.FC<{ dark?: boolean }> = ({ dark }) => {
   if (!isAuthenticated) {
     return (
       <button type="button" className={row} onClick={login}>
-        <i className="pi pi-sign-in" aria-hidden="true" />
+        <FontAwesomeIcon icon={faRightToBracket} aria-hidden="true" />
         <span>Sign in</span>
       </button>
     );
@@ -35,13 +37,13 @@ const AccountSection: React.FC<{ dark?: boolean }> = ({ dark }) => {
     <>
       <div className="px-3 py-2" data-testid="account-summary">
         <div className={`flex items-center gap-2 text-sm ${text}`}>
-          <i className="pi pi-user" aria-hidden="true" />
+          <FontAwesomeIcon icon={faUser} aria-hidden="true" />
           <span className="truncate">{user?.name || "Account"}</span>
         </div>
         {roles.length > 0 && <p className={`text-meta mt-1 ${muted}`}>Roles: {roleLabel(roles)}</p>}
       </div>
       <button type="button" className={row} onClick={logout}>
-        <i className="pi pi-sign-out" aria-hidden="true" />
+        <FontAwesomeIcon icon={faRightFromBracket} aria-hidden="true" />
         <span>Sign out</span>
       </button>
     </>
@@ -69,7 +71,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
             className="flex items-center gap-2 bg-transparent text-content-inverse cursor-pointer border-0 p-0"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-brand-fg">
-              <i className="pi pi-chart-line text-lg" aria-hidden="true" />
+              <FontAwesomeIcon icon={faChartLine} className="text-lg" aria-hidden="true" />
             </span>
             <span className="text-lg font-semibold">{brand}</span>
           </button>
@@ -78,7 +80,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
           {showNav &&
             NAV_ITEMS.map((item) => (
               <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
-                <i className={`pi ${item.icon} shrink-0`} aria-hidden="true" />
+                <FontAwesomeIcon icon={item.icon} className="shrink-0" aria-hidden="true" />
                 <span>{item.label}</span>
               </NavLink>
             ))}
@@ -96,7 +98,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
             className="h-11 w-11 flex items-center justify-center rounded-md hover:bg-white/10 bg-transparent border-0 cursor-pointer text-content-inverse shrink-0"
             aria-label="Open menu"
           >
-            <i className="pi pi-bars text-lg" aria-hidden="true" />
+            <FontAwesomeIcon icon={faBars} className="text-lg" aria-hidden="true" />
           </button>
           <span className="text-lg font-semibold truncate min-w-0 flex-1">{pageTitle ?? brand}</span>
         </div>
@@ -118,7 +120,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
                   ].join(" ")
                 }
               >
-                <i className={`pi ${item.icon}`} aria-hidden="true" />
+                <FontAwesomeIcon icon={item.icon} aria-hidden="true" />
                 <span>{item.label}</span>
               </NavLink>
             ))}

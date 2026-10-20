@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRotate } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "./ui/Button";
 import { ProgressSpinner } from "primereact/progressspinner";
 import MainLayout from "../layouts/Main";
 import { Watchlist } from "./Watchlist/Watchlist";
@@ -37,7 +39,11 @@ export const AppRouter: React.FC = () => {
                 <div className="max-w-xl mx-auto py-10 space-y-3" role="alert">
                   <h1 className="text-xl font-semibold">Could not check your access</h1>
                   <p className="text-content-muted">The server did not answer the role check. Try again in a moment.</p>
-                  <Button label="Try again" icon="pi pi-refresh" onClick={() => void refreshAuth()} />
+                  <Button
+                    label="Try again"
+                    icon={<FontAwesomeIcon icon={faRotate} />}
+                    onClick={() => void refreshAuth()}
+                  />
                 </div>
               }
             />

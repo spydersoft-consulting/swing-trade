@@ -1,4 +1,12 @@
 import React, { useEffect, useMemo } from "react";
+import {
+  faBriefcase,
+  faDollarSign,
+  faLock,
+  faPercent,
+  faTriangleExclamation,
+  faWallet,
+} from "@fortawesome/free-solid-svg-icons";
 import type { DashboardDto } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
 import { KpiTile } from "../layout/KpiTile";
@@ -97,14 +105,14 @@ const DashboardBody: React.FC<{ data: DashboardDto; maxOpen?: number; taxRate?: 
       <section aria-label="Key figures" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
         <KpiTile
           testId="kpi-account"
-          icon="pi-wallet"
+          icon={faWallet}
           label="Account value"
           value={formatMoney(data.accountValue)}
           detail={`${formatSignedPercent(data.returnPct)} on ${startingCapital !== undefined ? formatMoney(startingCapital) : "starting capital"}`}
         />
         <KpiTile
           testId="kpi-realized"
-          icon="pi-dollar"
+          icon={faDollarSign}
           label="Realized P&L"
           value={formatMoney(data.realizedPnl)}
           tone={data.realizedPnl > 0 ? "good" : data.realizedPnl < 0 ? "bad" : "neutral"}
@@ -112,7 +120,7 @@ const DashboardBody: React.FC<{ data: DashboardDto; maxOpen?: number; taxRate?: 
         />
         <KpiTile
           testId="kpi-tax"
-          icon="pi-percentage"
+          icon={faPercent}
           label="Tax set-aside"
           value={formatMoney(data.taxSetAside)}
           detail={
@@ -121,7 +129,7 @@ const DashboardBody: React.FC<{ data: DashboardDto; maxOpen?: number; taxRate?: 
         />
         <KpiTile
           testId="kpi-open"
-          icon="pi-briefcase"
+          icon={faBriefcase}
           label="Open positions"
           value={
             maxOpen !== undefined
@@ -133,14 +141,14 @@ const DashboardBody: React.FC<{ data: DashboardDto; maxOpen?: number; taxRate?: 
         />
         <KpiTile
           testId="kpi-capital"
-          icon="pi-lock"
+          icon={faLock}
           label="Capital at work"
           value={formatMoney(data.capitalAtWork)}
           detail={`${formatPercent(data.capitalAtWorkPct)} of starting capital`}
         />
         <KpiTile
           testId="kpi-risk"
-          icon="pi-exclamation-triangle"
+          icon={faTriangleExclamation}
           label="Risk at stops"
           value={formatMoney(data.riskAtStops)}
           detail={`${formatPercent(data.riskAtStopsPct)} of starting capital`}

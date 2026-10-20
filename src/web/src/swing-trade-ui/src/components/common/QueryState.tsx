@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "primereact/button";
+import { Button } from "../ui/Button";
 import { Message } from "primereact/message";
 import { ProgressSpinner } from "primereact/progressspinner";
 import type { ApiProblem } from "../../api/problem";
@@ -28,7 +28,7 @@ export const ErrorBlock: React.FC<ErrorBlockProps> = ({ problem, onRetry, title 
       <p className="text-sm">{problem?.message ?? "Something went wrong."}</p>
     </div>
     {onRetry && problem?.status !== 403 && (
-      <Button label="Retry" size="small" outlined severity="danger" onClick={onRetry} className="ml-auto" />
+      <Button label="Retry" size="sm" variant="outlined" severity="danger" onClick={onRetry} className="ml-auto" />
     )}
   </div>
 );

@@ -17,6 +17,9 @@
     "api:update": "yarn api:spec && yarn api:generate"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.3.1",
+    "@fortawesome/free-solid-svg-icons": "^7.3.1",
+    "@fortawesome/react-fontawesome": "^3.5.0",
     "@hey-api/client-axios": "^0.9.1",
     "@reduxjs/toolkit": "^2.13.0",
     "axios": "^1.20.0",
@@ -24,6 +27,7 @@
     "primeicons": "^7.0.0",
     "primereact": "^10.9.8",
     "react": "19.3.1",
+    "react-aria-components": "^1.22.1",
     "react-dom": "19.3.1",
     "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.4",
