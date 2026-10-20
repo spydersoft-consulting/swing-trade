@@ -34,7 +34,7 @@ The browser never holds a token; the BFF does. The API is the only enforcement p
 | `src/api/src/*.UnitTests` | NUnit 4 on Microsoft.Testing.Platform |
 | `src/api/tests/api-integration` | Playwright API suite (request context) against the Aspire `Testing` stack |
 | `src/web/src/Spydersoft.SwingTrade.Frontend` | ASP.NET BFF that serves the SPA and proxies `/api/v1` |
-| `src/web/src/swing-trade-ui` | React 19, Vite, PrimeReact, Tailwind, Redux Toolkit, generated API client |
+| `src/web/src/swing-trade-ui` | React 19, Vite, React Aria Components, Tailwind, Redux Toolkit, generated API client |
 | `src/web/tests/web-integration` | Playwright browser suite against the same stack |
 | `src/Spydersoft.SwingTrade.AppHost` | .NET Aspire AppHost: Postgres, mock OIDC, WireMock, API, BFF, Vite |
 | `charts/swing-trade` | Helm chart (bjw-s `common`): `api` and `web` controllers, UI route on `swingtrade.<host>`, MCP route on `swingtrade-mcp.<host>` |

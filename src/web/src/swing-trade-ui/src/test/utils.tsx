@@ -2,7 +2,6 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
-import { PrimeReactProvider } from "primereact/api";
 import { AuthContext, type IAuthContext } from "../context/AuthContext";
 import { ToastProvider } from "../context/ToastContext";
 import { makeStore, type RootState } from "../store/store";
@@ -78,15 +77,13 @@ export function renderScreen(ui: React.ReactElement, options: RenderOptions = {}
   const store = makeStore(options.preloadedState);
   const auth = authFor(options.persona ?? "trader", options.auth);
   const result = render(
-    <PrimeReactProvider>
-      <ToastProvider>
-        <AuthContext.Provider value={auth}>
-          <Provider store={store}>
-            <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
-          </Provider>
-        </AuthContext.Provider>
-      </ToastProvider>
-    </PrimeReactProvider>,
+    <ToastProvider>
+      <AuthContext.Provider value={auth}>
+        <Provider store={store}>
+          <MemoryRouter initialEntries={[options.route ?? "/"]}>{ui}</MemoryRouter>
+        </Provider>
+      </AuthContext.Provider>
+    </ToastProvider>,
   );
   return { store, auth, ...result };
 }
