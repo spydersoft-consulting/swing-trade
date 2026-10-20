@@ -60,22 +60,6 @@ html body {
   font-variant-numeric: tabular-nums;
 }
 
-/* --- PrimeReact surface overrides (lighter chrome) --- */
-.p-card {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  box-shadow: none;
-}
-
-.p-card .p-card-body {
-  padding: 1rem;
-}
-
-.p-card .p-card-content {
-  padding: 0;
-}
-
 /* Keyboard focus must stay visible on the chip-style toggles. */
 .chip-toggle:focus-visible {
   outline: 2px solid var(--color-brand);

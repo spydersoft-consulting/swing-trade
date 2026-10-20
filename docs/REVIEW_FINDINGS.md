@@ -15,7 +15,7 @@ Scope: authentication and authorization, the /mcp pipeline, MCP audit logging, m
 | --- | --- | --- |
 | Low | CSV export does not neutralise cells starting with `=`, `+`, `-`, `@` (Rationale and Lessons are free text). | Documented as accepted in DECISIONS #58 (owner's own data, single user). Changing it alters exported values; a leading `'` on the two text columns is the usual fix if the owner wants it. |
 | Low | The stored `McpCallLog.Arguments` is cut at 1000 characters, which can leave invalid JSON. | Cosmetic; it is display-only. |
-| Low | The BFF sets no security headers (CSP, X-Content-Type-Options, frame options). The SPA has no `dangerouslySetInnerHTML`, `eval` or token handling, so exposure is small. | Needs a policy decision on the CSP (PrimeReact inline styles). |
+| Low | The BFF sets no security headers (CSP, X-Content-Type-Options, frame options). The SPA has no `dangerouslySetInnerHTML`, `eval` or token handling, so exposure is small. | Needs a policy decision on the CSP (inline styles). |
 | Info | The MCP rate limiter is one global fixed window, not per caller. | Documented (DECISIONS #78). |
 | Unverified | Cookie `SameSite` and CSRF posture of the OidcProxy session cookie for POST/PUT/DELETE through the BFF. | Library behaviour; not visible in this repo. Check in the first deploy. |
 | Unverified | `aud: swingtrade` is issued by the real identity server for the MCP resource; the Claude connector accepts the pre-registered client. | Already listed as open (DECISIONS #76, owner items). |

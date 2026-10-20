@@ -1,7 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
-import { PrimeReactProvider } from "primereact/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppRouter } from "./AppRouter";
 import { AccessNotGranted } from "./AccessNotGranted/AccessNotGranted";
@@ -24,15 +23,13 @@ vi.mock("./Settings/Settings", () => ({ Settings: () => <h1>Settings screen</h1>
 
 const renderApp = (auth: IAuthContext) =>
   render(
-    <PrimeReactProvider>
-      <ToastProvider>
-        <AuthContext.Provider value={auth}>
-          <Provider store={makeStore()}>
-            <AppRouter />
-          </Provider>
-        </AuthContext.Provider>
-      </ToastProvider>
-    </PrimeReactProvider>,
+    <ToastProvider>
+      <AuthContext.Provider value={auth}>
+        <Provider store={makeStore()}>
+          <AppRouter />
+        </Provider>
+      </AuthContext.Provider>
+    </ToastProvider>,
   );
 
 beforeEach(() => {
@@ -115,13 +112,11 @@ describe("NavigationBar", () => {
   const renderNav = (persona: Persona, overrides: Partial<IAuthContext> = {}) =>
     render(
       <MemoryRouter>
-        <PrimeReactProvider>
-          <AuthContext.Provider value={authFor(persona, overrides)}>
-            <PageTitleProvider>
-              <NavigationBar />
-            </PageTitleProvider>
-          </AuthContext.Provider>
-        </PrimeReactProvider>
+        <AuthContext.Provider value={authFor(persona, overrides)}>
+          <PageTitleProvider>
+            <NavigationBar />
+          </PageTitleProvider>
+        </AuthContext.Provider>
       </MemoryRouter>,
     );
 
@@ -181,11 +176,9 @@ describe("Landing", () => {
   it("has a heading and a sign in button", () => {
     const login = vi.fn();
     render(
-      <PrimeReactProvider>
-        <AuthContext.Provider value={authFor("reader", { login, isAuthenticated: false })}>
-          <Landing />
-        </AuthContext.Provider>
-      </PrimeReactProvider>,
+      <AuthContext.Provider value={authFor("reader", { login, isAuthenticated: false })}>
+        <Landing />
+      </AuthContext.Provider>,
     );
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     screen.getByRole("button", { name: "Sign in" }).click();

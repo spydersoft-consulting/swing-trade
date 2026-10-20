@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { faWallet } from "@fortawesome/free-solid-svg-icons";
-import { PrimeReactProvider } from "primereact/api";
 import { SignalPill, StaleBadge } from "./Badges";
 import { signalTone } from "./signalTone";
 import { ErrorBlock, LoadingBlock } from "./QueryState";
@@ -54,34 +53,24 @@ describe("signal colours", () => {
 
 describe("query states", () => {
   it("announces loading", () => {
-    render(
-      <PrimeReactProvider>
-        <LoadingBlock label="Loading trades" />
-      </PrimeReactProvider>,
-    );
+    render(<LoadingBlock label="Loading trades" />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading trades");
   });
 
   it("offers a retry for a failure but not for a permission problem", () => {
     const retry = vi.fn();
     const { rerender } = render(
-      <PrimeReactProvider>
-        <ErrorBlock
-          problem={{ status: 500, message: "Server trouble", fieldErrors: {} }}
-          onRetry={retry}
-          title="Could not load X"
-        />
-      </PrimeReactProvider>,
+      <ErrorBlock
+        problem={{ status: 500, message: "Server trouble", fieldErrors: {} }}
+        onRetry={retry}
+        title="Could not load X"
+      />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Could not load X");
     screen.getByRole("button", { name: "Retry" }).click();
     expect(retry).toHaveBeenCalled();
 
-    rerender(
-      <PrimeReactProvider>
-        <ErrorBlock problem={{ status: 403, message: FORBIDDEN_MESSAGE, fieldErrors: {} }} onRetry={retry} />
-      </PrimeReactProvider>,
-    );
+    rerender(<ErrorBlock problem={{ status: 403, message: FORBIDDEN_MESSAGE, fieldErrors: {} }} onRetry={retry} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Not permitted");
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
@@ -119,11 +108,9 @@ describe("toasts", () => {
       return <button onClick={() => toast.success("Saved", "It worked")}>go</button>;
     }
     render(
-      <PrimeReactProvider>
-        <ToastProvider>
-          <Probe />
-        </ToastProvider>
-      </PrimeReactProvider>,
+      <ToastProvider>
+        <Probe />
+      </ToastProvider>,
     );
 
     act(() => {

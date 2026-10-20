@@ -74,7 +74,7 @@ A good PR description states what changed and why in one to three bullets, calls
 
 There are no git hooks yet (Husky was left out on purpose, DECISIONS #98): run `yarn lint-staged`, `dotnet format` and the tests yourself before you push.
 
-React conventions: function components and hooks; one feature per folder under `src/components`; state in Redux Toolkit slices; Tailwind utilities and PrimeReact only (no third styling system); never import the raw generated client in components, wrap calls in `src/api/swingTradeApi.ts`; show every figure exactly as the API returned it.
+React conventions: function components and hooks; one feature per folder under `src/components`; state in Redux Toolkit slices; Tailwind utilities and the React Aria wrappers in `src/components/ui` only (no third styling system); never import the raw generated client in components, wrap calls in `src/api/swingTradeApi.ts`; show every figure exactly as the API returned it.
 
 ## Tests
 
