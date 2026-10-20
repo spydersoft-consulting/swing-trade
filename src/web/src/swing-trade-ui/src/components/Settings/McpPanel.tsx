@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
+import { Column, DataTable } from "../ui/DataTable";
 import type { McpCallDto } from "../../api/generated/types.gen";
 import { ErrorBlock, LoadingBlock } from "../common/QueryState";
 import { Pill } from "../common/Badges";
@@ -51,14 +50,7 @@ export const McpPanel: React.FC = () => {
       )}
       <div>
         <h3 className="text-sm font-semibold mb-1">Last {mcpCalls.length > 0 ? mcpCalls.length : 20} calls</h3>
-        <DataTable
-          value={mcpCalls}
-          size="small"
-          dataKey="id"
-          emptyMessage="No calls recorded yet."
-          aria-label="MCP call log"
-          scrollable
-        >
+        <DataTable value={mcpCalls} dataKey="id" emptyMessage="No calls recorded yet." aria-label="MCP call log">
           <Column field="at" header="When" body={(c: McpCallDto) => formatDateTime(c.at)} />
           <Column field="tool" header="Tool" />
           <Column

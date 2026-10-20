@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
+import { Column, DataTable } from "../ui/DataTable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faRotate } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "../ui/Button";
@@ -161,12 +160,8 @@ export const Watchlist: React.FC = () => {
           <DataTable
             value={visible}
             dataKey="ticker"
-            size="small"
             stripedRows
-            scrollable
-            removableSort
-            rowClassName={() => "row-clickable"}
-            onRowClick={(e) => setSelected((e.data as WatchlistRowDto).ticker)}
+            onRowClick={(r: WatchlistRowDto) => setSelected(r.ticker)}
             emptyMessage={`No tickers with the signal "${FILTERS.find((f) => f.value === filter)?.label}".`}
             aria-label="Watchlist"
           >

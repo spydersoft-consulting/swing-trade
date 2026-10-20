@@ -76,18 +76,6 @@ html body {
   padding: 0;
 }
 
-.p-datatable .p-datatable-tbody > tr.row-bad {
-  background-color: var(--color-bad-tint);
-}
-
-.p-datatable .p-datatable-tbody > tr.row-warn {
-  background-color: var(--color-warn-tint);
-}
-
-.p-datatable .p-datatable-tbody > tr.row-clickable {
-  cursor: pointer;
-}
-
 /* Keyboard focus must stay visible on the chip-style toggles. */
 .chip-toggle:focus-visible {
   outline: 2px solid var(--color-brand);
