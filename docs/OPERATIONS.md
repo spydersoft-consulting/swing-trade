@@ -102,7 +102,7 @@ Security notes:
 
 - A valid token is necessary but not sufficient: the endpoint also requires the `swingtrade.mcp` role and `sub == Mcp:OwnerSubject`. Another user, even with the role, gets 403. The REST roles do not grant MCP and the MCP role does not grant REST.
 - Tokens are accepted from the `Authorization` header only, never the query string. They are never logged; the call log keeps the caller's `sub`, tool, sanitised arguments and duration for 90 days.
-- Defence in depth: a Host allowlist (421), a fixed-window rate limit (default 120 per minute, 429), no CORS. The tools are read-only; `add_note` is off (`Mcp__EnableAddNote=false`) and, if enabled, also needs `swingtrade.trader`.
+- Defence in depth: a Host allowlist (421), a fixed-window rate limit (default 120 per minute, 429), no CORS. The read tools are always on. Every write tool is off by default behind its own flag (`Mcp__EnableAddNote`, `Mcp__EnableJournalWrites`, `Mcp__EnableTradeLifecycle`, `Mcp__EnableWatchlistManagement`) and, if enabled, also needs `swingtrade.trader`. No tool places an order.
 - To cut off Claude immediately: remove `swingtrade.mcp` from the owner (new tokens), disable the `api-mcp` route (`route.api-mcp.enabled: false`), or set `Mcp__OwnerSubject` to something unused. Access tokens already issued live up to an hour (`AccessTokenLifetime`).
 - The data is personal financial data. Keep the public route as narrow as it is; never add CORS or widen the path list.
 

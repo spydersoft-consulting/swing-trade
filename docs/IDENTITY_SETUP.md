@@ -51,6 +51,9 @@ An unauthenticated request gets `401` with `WWW-Authenticate: Bearer resource_me
 | `Mcp__OwnerSubject` | the owner's Duende `sub` (find it in the access token or the identity database) |
 | `Mcp__AllowedHosts__0` | the MCP host (`swingtrade-mcp.<environment_hostname>`); the chart config sets it explicitly. Default if unset: the host of `Mcp__PublicUrl` |
 | `Mcp__EnableAddNote` | `false` (default). `true` registers `add_note`, which then also needs `swingtrade.trader` |
+| `Mcp__EnableJournalWrites` | `false` (default). `true` registers `record_pass` and `log_planned_trade` (needs `swingtrade.trader`) |
+| `Mcp__EnableTradeLifecycle` | `false` (default). `true` registers `fill_trade`, `close_trade` and `cancel_trade` (needs `swingtrade.trader`) |
+| `Mcp__EnableWatchlistManagement` | `false` (default). `true` registers `add_instrument` and `set_instrument_active` (needs `swingtrade.trader`) |
 | `Mcp__RequestsPerMinute` | optional, default 120 for `/mcp` and the metadata routes together |
 | `Auth__Authority` | the issuer, exactly as in Duende's discovery document, no trailing slash |
 

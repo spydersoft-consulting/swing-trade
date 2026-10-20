@@ -43,7 +43,7 @@ All routes are under `/api/v1` and need a token for audience `swingtrade` with a
 
 `/mcp` is a Streamable HTTP MCP server (official C# SDK `ModelContextProtocol.AspNetCore`, stateless; there is no `initialize` handshake or session to keep). It lives in `Api/Mcp` and is a thin layer over the same services the controllers use. Design choices are DECISIONS #71 to #83; the identity-server and Helm side is in `docs/IDENTITY_SETUP.md`.
 
-- **Tools** (read-only): `get_dashboard`, `get_watchlist`, `get_instrument`, `get_bars` (max 120), `list_trades` (max 100), `get_trade`, `size_position`, `get_settings`, `get_refresh_status`, `list_notes`. Each returns `{ asOf, dataStatus, settings, data }`; `data` equals the matching REST response. `add_note` exists only with `Mcp:EnableAddNote=true` and then also needs `swingtrade.trader`.
+- **Tools** (read-only): `get_dashboard`, `get_watchlist`, `get_instrument`, `get_bars` (max 120), `list_trades` (max 100), `get_trade`, `size_position`, `get_settings`, `get_refresh_status`, `list_notes`, `get_levels` (swing low and prior high from closes). Each returns `{ asOf, dataStatus, settings, data }`; `data` equals the matching REST response. `add_note` exists only with `Mcp:EnableAddNote=true` and then also needs `swingtrade.trader`. Write tools, each group behind its own flag and each needing `swingtrade.trader`: `add_note`; `record_pass`, `log_planned_trade` (sized by the sizer, refused on a SKIP verdict); `fill_trade`, `close_trade`, `cancel_trade`; `add_instrument`, `set_instrument_active`. None places an order.
 - **Resource** `journal://rules`: the rule set as plain text, generated from the Rules library constants and the live Settings.
 - **Prompts** `weekly_review` and `trade_postmortem(tradeId)`.
 - **Access**: bearer token from `Auth:Authority` with audience `swingtrade`, role `swingtrade.mcp`, and `sub` equal to `Mcp:OwnerSubject`. No token or a bad one is 401 with `WWW-Authenticate: Bearer resource_metadata="..."`; a valid token for anyone else is 403. Tokens are read from the Authorization header only. `/.well-known/oauth-protected-resource` (and `.../mcp`) serves the RFC 9728 metadata. Host allowlist (`Mcp:AllowedHosts`, 421), a rate limit (`Mcp:RequestsPerMinute`, 429), no CORS.
@@ -55,6 +55,9 @@ All routes are under `/api/v1` and need a token for audience `swingtrade` with a
 | `Mcp:OwnerSubject` | The only `sub` allowed. Required outside Development and Testing (startup fails without it) |
 | `Mcp:AllowedHosts` | Host names for the MCP routes; default is the host of `Mcp:PublicUrl` |
 | `Mcp:EnableAddNote` | Registers `add_note`; default false |
+| `Mcp:EnableJournalWrites` | Registers `record_pass` and `log_planned_trade`; default false |
+| `Mcp:EnableTradeLifecycle` | Registers `fill_trade`, `close_trade`, `cancel_trade`; default false |
+| `Mcp:EnableWatchlistManagement` | Registers `add_instrument`, `set_instrument_active`; default false |
 | `Mcp:RequestsPerMinute` | Fixed-window limit for `/mcp` and the metadata routes; default 120 |
 
 Try it against the running `Testing` stack with the MCP Inspector (mint the `mcponly` token as shown in `docs/apphost-launch-profiles.md`; the Testing API trusts that user as the owner):
