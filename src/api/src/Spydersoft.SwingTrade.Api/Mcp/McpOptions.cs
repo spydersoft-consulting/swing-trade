@@ -19,6 +19,9 @@ public sealed class McpOptions
     /// <summary>Registers the add_note tool (which additionally needs the swingtrade.trader role). Off by default.</summary>
     public bool EnableAddNote { get; set; }
 
+    /// <summary>Registers record_pass and log_planned_trade (which additionally need the swingtrade.trader role). Off by default.</summary>
+    public bool EnableJournalWrites { get; set; }
+
     /// <summary>Host names the MCP routes answer to. Empty means the host of <see cref="PublicUrl"/>.</summary>
     public string[] AllowedHosts { get; set; } = [];
 

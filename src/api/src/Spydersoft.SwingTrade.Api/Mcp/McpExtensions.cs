@@ -50,6 +50,8 @@ public static class McpExtensions
             .WithRequestFilters(McpAuditFilters.Apply);
         if (options.EnableAddNote)
             builder.WithTools<JournalWriteTools>();
+        if (options.EnableJournalWrites)
+            builder.WithTools<JournalEntryTools>();
 
         services.AddRateLimiter(rl =>
         {
