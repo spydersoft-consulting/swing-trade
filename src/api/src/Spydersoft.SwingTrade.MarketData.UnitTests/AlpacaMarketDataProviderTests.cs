@@ -94,7 +94,7 @@ public class AlpacaMarketDataProviderTests
     }
 
     [Test]
-    public void TooManyRequests_IsRetryableAndKeepsRetryAfter()
+    public async Task TooManyRequests_IsRetryableAndKeepsRetryAfter()
     {
         var (provider, _) = Create(_ =>
         {
@@ -103,7 +103,7 @@ public class AlpacaMarketDataProviderTests
             return response;
         });
 
-        var ex = Assert.ThrowsAsync<ProviderUnavailableException>(() =>
+        var ex = await Assert.ThrowsAsync<ProviderUnavailableException>(() =>
             provider.GetDailyBars("SPY", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 9), default));
         Assert.Multiple(() =>
         {
@@ -113,28 +113,28 @@ public class AlpacaMarketDataProviderTests
     }
 
     [Test]
-    public void Unauthorized_IsNotRetryable()
+    public async Task Unauthorized_IsNotRetryable()
     {
         var (provider, _) = Create(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized));
-        var ex = Assert.ThrowsAsync<ProviderUnavailableException>(() =>
+        var ex = await Assert.ThrowsAsync<ProviderUnavailableException>(() =>
             provider.GetDailyBars("SPY", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 9), default));
         Assert.That(ex!.Retryable, Is.False);
     }
 
     [Test]
-    public void UnknownSymbol_IsTickerNotFound()
+    public async Task UnknownSymbol_IsTickerNotFound()
     {
         var (provider, _) = Create(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-        Assert.ThrowsAsync<TickerNotFoundException>(() =>
+        await Assert.ThrowsAsync<TickerNotFoundException>(() =>
             provider.GetDailyBars("ZZZZ", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 9), default));
     }
 
     [Test]
-    public void NetworkFailure_IsWrappedAsUnavailable()
+    public async Task NetworkFailure_IsWrappedAsUnavailable()
     {
         var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("boom"));
         var provider = new AlpacaMarketDataProvider(new HttpClient(handler), Opts.Create(), new FakeTimeProvider(Now));
-        Assert.ThrowsAsync<ProviderUnavailableException>(() =>
+        await Assert.ThrowsAsync<ProviderUnavailableException>(() =>
             provider.GetDailyBars("SPY", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 9), default));
     }
 

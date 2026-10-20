@@ -24,11 +24,11 @@ public class FakeAndOptionsTests
     }
 
     [Test]
-    public void Fake_CanThrowPerTicker_FromConfigOrCode()
+    public async Task Fake_CanThrowPerTicker_FromConfigOrCode()
     {
         var fake = new FakeMarketDataProvider(Opts.Create(o => o.Fake.FailTickers = ["XLE"])).FailFor("XLK");
-        Assert.ThrowsAsync<ProviderUnavailableException>(() => fake.GetDailyBars("XLE", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
-        Assert.ThrowsAsync<ProviderUnavailableException>(() => fake.GetDailyBars("XLK", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
+        await Assert.ThrowsAsync<ProviderUnavailableException>(() => fake.GetDailyBars("XLE", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
+        await Assert.ThrowsAsync<ProviderUnavailableException>(() => fake.GetDailyBars("XLK", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
         Assert.DoesNotThrowAsync(() => fake.GetDailyBars("SPY", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
     }
 
