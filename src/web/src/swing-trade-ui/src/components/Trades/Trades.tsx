@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { DataTable } from "primereact/datatable";
-import { Column } from "primereact/column";
+import { Column, DataTable } from "../ui/DataTable";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "../ui/Button";
@@ -215,15 +214,7 @@ export const Trades: React.FC = () => {
         )}
         {visible.length > 0 && (
           <div className="rounded-xl bg-surface border border-border overflow-hidden">
-            <DataTable
-              value={visible}
-              dataKey="id"
-              size="small"
-              scrollable
-              removableSort
-              rowClassName={tradeRowClass}
-              aria-label="Trades"
-            >
+            <DataTable value={visible} dataKey="id" rowClassName={tradeRowClass} aria-label="Trades">
               <Column
                 field="ticker"
                 header="Position"
