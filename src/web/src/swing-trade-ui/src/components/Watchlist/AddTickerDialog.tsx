@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dialog } from "primereact/dialog";
+import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
@@ -58,7 +58,7 @@ export const AddTickerDialog: React.FC<Props> = ({ visible, onHide }) => {
   };
 
   return (
-    <Dialog header="Add ticker" visible={visible} onHide={close} style={{ width: "min(28rem, 95vw)" }} modal>
+    <Modal open={visible} header="Add ticker" onClose={close} width="min(28rem, 95vw)">
       <form onSubmit={(e) => void submit(e)} className="space-y-3" noValidate>
         <TextField
           id="add-ticker"
@@ -93,6 +93,6 @@ export const AddTickerDialog: React.FC<Props> = ({ visible, onHide }) => {
           <Button type="submit" label="Add ticker" loading={saving} />
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 };

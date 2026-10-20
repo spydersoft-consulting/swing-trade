@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faChartLine, faRightFromBracket, faRightToBracket, faUser } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Sidebar } from "primereact/sidebar";
+import { Drawer } from "../ui/Drawer";
 import { useAuth, usePageTitle } from "../../context";
 import { NAV_ITEMS } from "./navItems";
 
@@ -104,8 +104,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
         </div>
       </div>
 
-      <Sidebar visible={drawerOpen} onHide={() => setDrawerOpen(false)} position="left" className="w-72" showCloseIcon>
-        <div className="text-lg font-semibold mb-4">{brand}</div>
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} position="left" width="18rem" header={brand}>
         <nav className="space-y-1" aria-label="Screens (menu)">
           {showNav &&
             NAV_ITEMS.map((item) => (
@@ -127,7 +126,7 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({ brand = "Swing Tra
         </nav>
         <hr className="my-4 border-border" />
         <AccountSection />
-      </Sidebar>
+      </Drawer>
     </>
   );
 };

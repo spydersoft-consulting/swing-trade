@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dialog } from "primereact/dialog";
+import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import type { TradeDto } from "../../api/generated/types.gen";
 import { TextAreaField, TextField } from "../common/Fields";
@@ -55,7 +55,7 @@ const FillForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, on
   };
 
   return (
-    <Dialog header={`Fill ${trade.ticker}`} visible onHide={onHide} style={{ width: "min(26rem, 95vw)" }} modal>
+    <Modal header={`Fill ${trade.ticker}`} onClose={onHide} width="min(26rem, 95vw)">
       <form onSubmit={(e) => void submit(e)} className="space-y-3" noValidate>
         <p className="text-sm text-content-muted">
           Limit price was {formatMoney(trade.entryPrice)}. Enter the price you actually paid.
@@ -85,7 +85,7 @@ const FillForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, on
           <Button type="submit" label="Mark as filled" loading={saving} />
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 };
 
@@ -131,7 +131,7 @@ const CloseForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, o
   };
 
   return (
-    <Dialog header={`Close ${trade.ticker}`} visible onHide={onHide} style={{ width: "min(28rem, 95vw)" }} modal>
+    <Modal header={`Close ${trade.ticker}`} onClose={onHide} width="min(28rem, 95vw)">
       <form onSubmit={(e) => void submit(e)} className="space-y-3" noValidate>
         <p className="text-sm text-content-muted">
           {trade.shares} shares bought at {formatMoney(trade.entryPrice)}.
@@ -173,6 +173,6 @@ const CloseForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, o
           <Button type="submit" label="Close trade" loading={saving} />
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 };

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sidebar } from "primereact/sidebar";
+import { Drawer } from "../ui/Drawer";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalculator, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "../ui/Button";
-import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { confirmDialog } from "../ui/confirmDialogStore";
 import type { BarsDto, WatchlistRowDto } from "../../api/generated/types.gen";
 import { swingTradeApi } from "../../api/swingTradeApi";
 import { toProblem, type ApiProblem } from "../../api/problem";
@@ -78,7 +79,6 @@ export const InstrumentDrawer: React.FC<Props> = ({ row, onHide }) => {
     confirmDialog({
       message: `Deactivate ${row.ticker}? It leaves the watchlist; trades and history are kept.`,
       header: "Deactivate ticker",
-      icon: "pi pi-exclamation-triangle",
       acceptLabel: "Deactivate",
       rejectLabel: "Keep",
       accept: async () => {
@@ -94,85 +94,88 @@ export const InstrumentDrawer: React.FC<Props> = ({ row, onHide }) => {
   };
 
   return (
-    <Sidebar
-      visible={row !== null}
-      onHide={onHide}
-      position="right"
-      style={{ width: "min(40rem, 100vw)" }}
-      header={row ? <span className="text-lg font-semibold">{`${row.ticker} ${row.name}`}</span> : undefined}
-    >
-      {row && (
-        <div className="space-y-4" data-testid="instrument-drawer">
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-            <Fact label="As of">
-              <span className="inline-flex items-center gap-2">
-                {formatDate(row.asOfDate)}
-                {row.stale && <StaleBadge asOf={formatDate(row.asOfDate)} />}
-              </span>
-            </Fact>
-            <Fact label="Last close">{formatMoney(row.last)}</Fact>
-            <Fact label="% vs 20-day">{formatSignedPercent(row.pctVs20)}</Fact>
-            <Fact label="20-day">{formatMoney(row.ma20)}</Fact>
-            <Fact label="50-day">{formatMoney(row.ma50)}</Fact>
-            <Fact label="Trend">{row.trendText}</Fact>
-            <Fact label="Signal">
-              <SignalPill signal={row.signal} text={row.signalText} />
-            </Fact>
-            <Fact label="Re-entry date">
-              {row.reentryOkAfter ? `after ${formatDate(row.reentryOkAfter)}` : "Clear"}
-            </Fact>
-          </dl>
+    <>
+      <Drawer
+        open={row !== null}
+        onClose={onHide}
+        position="right"
+        width="min(40rem, 100vw)"
+        header={row ? `${row.ticker} ${row.name}` : undefined}
+        aria-label="Instrument"
+      >
+        {row && (
+          <div className="space-y-4" data-testid="instrument-drawer">
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+              <Fact label="As of">
+                <span className="inline-flex items-center gap-2">
+                  {formatDate(row.asOfDate)}
+                  {row.stale && <StaleBadge asOf={formatDate(row.asOfDate)} />}
+                </span>
+              </Fact>
+              <Fact label="Last close">{formatMoney(row.last)}</Fact>
+              <Fact label="% vs 20-day">{formatSignedPercent(row.pctVs20)}</Fact>
+              <Fact label="20-day">{formatMoney(row.ma20)}</Fact>
+              <Fact label="50-day">{formatMoney(row.ma50)}</Fact>
+              <Fact label="Trend">{row.trendText}</Fact>
+              <Fact label="Signal">
+                <SignalPill signal={row.signal} text={row.signalText} />
+              </Fact>
+              <Fact label="Re-entry date">
+                {row.reentryOkAfter ? `after ${formatDate(row.reentryOkAfter)}` : "Clear"}
+              </Fact>
+            </dl>
 
-          {loading && <LoadingBlock label="Loading the chart" />}
-          {error && (
-            <ErrorBlock problem={error} onRetry={() => setAttempt((n) => n + 1)} title="Could not load the chart" />
-          )}
-          {bars && bars.bars.length === 0 && (
-            <p className="text-sm text-content-muted">No completed bars are stored for {row.ticker} yet.</p>
-          )}
-          {bars && bars.bars.length > 0 && (
-            <div>
-              <LineChart
-                labels={labels}
-                series={series}
-                ariaLabel={`${row.ticker} close with 20-day and 50-day averages, last ${bars.bars.length} sessions`}
-                formatValue={formatMoney}
-              />
-              <p className="text-meta text-content-muted mt-1" data-testid="chart-asof">
-                {bars.bars.length} completed sessions, through {formatDate(bars.bars.at(-1)?.date)}.
-              </p>
-            </div>
-          )}
+            {loading && <LoadingBlock label="Loading the chart" />}
+            {error && (
+              <ErrorBlock problem={error} onRetry={() => setAttempt((n) => n + 1)} title="Could not load the chart" />
+            )}
+            {bars && bars.bars.length === 0 && (
+              <p className="text-sm text-content-muted">No completed bars are stored for {row.ticker} yet.</p>
+            )}
+            {bars && bars.bars.length > 0 && (
+              <div>
+                <LineChart
+                  labels={labels}
+                  series={series}
+                  ariaLabel={`${row.ticker} close with 20-day and 50-day averages, last ${bars.bars.length} sessions`}
+                  formatValue={formatMoney}
+                />
+                <p className="text-meta text-content-muted mt-1" data-testid="chart-asof">
+                  {bars.bars.length} completed sessions, through {formatDate(bars.bars.at(-1)?.date)}.
+                </p>
+              </div>
+            )}
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              type="button"
-              label="Plan a trade"
-              icon={<FontAwesomeIcon icon={faCalculator} />}
-              onClick={() => {
-                onHide();
-                navigate(planHref);
-              }}
-            />
-            {canWrite && (
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 type="button"
-                label="Deactivate ticker"
-                icon={<FontAwesomeIcon icon={faEyeSlash} />}
-                variant="outlined"
-                severity="danger"
-                onClick={confirmDeactivate}
+                label="Plan a trade"
+                icon={<FontAwesomeIcon icon={faCalculator} />}
+                onClick={() => {
+                  onHide();
+                  navigate(planHref);
+                }}
               />
-            )}
+              {canWrite && (
+                <Button
+                  type="button"
+                  label="Deactivate ticker"
+                  icon={<FontAwesomeIcon icon={faEyeSlash} />}
+                  variant="outlined"
+                  severity="danger"
+                  onClick={confirmDeactivate}
+                />
+              )}
+            </div>
+            <p className="text-meta text-content-muted">
+              Plan a trade opens the sizer with the last close ({formatMoney(row.last)}, {formatDate(row.asOfDate)}) as
+              the entry. Signals are informational, not advice.
+            </p>
           </div>
-          <p className="text-meta text-content-muted">
-            Plan a trade opens the sizer with the last close ({formatMoney(row.last)}, {formatDate(row.asOfDate)}) as
-            the entry. Signals are informational, not advice.
-          </p>
-        </div>
-      )}
+        )}
+      </Drawer>
       <ConfirmDialog />
-    </Sidebar>
+    </>
   );
 };
 

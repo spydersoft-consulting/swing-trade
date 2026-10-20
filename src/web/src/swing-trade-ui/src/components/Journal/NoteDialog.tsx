@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dialog } from "primereact/dialog";
+import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import type { NoteKind } from "../../api/generated/types.gen";
 import { SelectField, TextAreaField, TextField } from "../common/Fields";
@@ -58,13 +58,7 @@ const NoteForm: React.FC<{ initialKind: NoteKind; onHide: () => void }> = ({ ini
   };
 
   return (
-    <Dialog
-      header={isPass ? "Record a pass" : "Add a note"}
-      visible
-      onHide={onHide}
-      style={{ width: "min(30rem, 95vw)" }}
-      modal
-    >
+    <Modal header={isPass ? "Record a pass" : "Add a note"} onClose={onHide} width="min(30rem, 95vw)">
       <form onSubmit={(e) => void submit(e)} className="space-y-3" noValidate>
         {isPass && (
           <p className="text-sm text-content-muted">A week with no trade is a decision. Say why, in a sentence.</p>
@@ -104,6 +98,6 @@ const NoteForm: React.FC<{ initialKind: NoteKind; onHide: () => void }> = ({ ini
           <Button type="submit" label={isPass ? "Record pass" : "Save note"} loading={saving} />
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 };
