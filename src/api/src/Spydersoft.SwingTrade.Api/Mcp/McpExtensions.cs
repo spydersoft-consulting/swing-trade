@@ -52,6 +52,8 @@ public static class McpExtensions
             builder.WithTools<JournalWriteTools>();
         if (options.EnableJournalWrites)
             builder.WithTools<JournalEntryTools>();
+        if (options.EnableTradeLifecycle)
+            builder.WithTools<TradeLifecycleTools>();
 
         services.AddRateLimiter(rl =>
         {
