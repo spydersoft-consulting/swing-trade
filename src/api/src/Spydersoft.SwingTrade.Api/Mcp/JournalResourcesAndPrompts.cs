@@ -30,7 +30,7 @@ public class JournalPrompts(TradeService trades)
         1. Read {JournalResources.RulesUri} first so your judgement is anchored to my real rules.
         2. Call get_dashboard, get_watchlist, list_trades with status Open, list_trades with status Planned, and list_notes for the last 7 days.
         3. Check dataStatus and asOf on every result. If anything is stale, say so before anything else.
-        4. List every ticker whose Signal is "Pullback candidate". For each one, ask me for my entry, stop and target (or offer the last close as the entry), then call size_position and report shares, cost, risk, reward:risk, MaxEntryForMinRR and the verdict.
+        4. List every ticker whose Signal is "Pullback candidate". For each one, call get_levels for the swing low and prior high as stop and target candidates, ask me for my entry, stop and target (or offer the last close as the entry), then call size_position and report shares, cost, risk, reward:risk, MaxEntryForMinRR and the verdict.
         5. Flag wash-sale conflicts (get_instrument shows the re-entry date) and any open position that breaks my limits.
         6. Summarise open and planned trades against their stops and targets.
         7. End by asking whether I want to record a pass for this week.

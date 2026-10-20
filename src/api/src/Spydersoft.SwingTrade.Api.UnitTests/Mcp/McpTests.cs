@@ -21,7 +21,7 @@ public class McpTests
     private static readonly string[] ReadTools =
     [
         "get_dashboard", "get_watchlist", "get_instrument", "get_bars", "list_trades", "get_trade",
-        "size_position", "get_settings", "get_refresh_status", "list_notes"
+        "size_position", "get_settings", "get_refresh_status", "list_notes", "get_levels"
     ];
 
     private static readonly DateOnly Friday = new(2026, 10, 9);
@@ -80,7 +80,7 @@ public class McpTests
     }
 
     [Test]
-    public async Task ToolsList_AddNoteFlagOff_IsExactlyTheTenReadTools()
+    public async Task ToolsList_AddNoteFlagOff_IsExactlyTheReadTools()
     {
         await using var host = await StartAsync();
         Assert.That(await ListToolNamesAsync(host), Is.EquivalentTo(ReadTools));
@@ -195,6 +195,31 @@ public class McpTests
         Assert.That(data!["bars"]!.AsArray().Count, Is.EqualTo(120));
         AssertSame(data, await RestAsync(host, "/api/v1/instruments/XLE/bars?days=120"));
         Assert.That((await ToolDataAsync(host, "get_bars", new { ticker = "XLE", days = 7 }))!["bars"]!.AsArray().Count, Is.EqualTo(7));
+    }
+
+    [Test]
+    public async Task GetLevels_ReturnsLowestAndHighestCloseOfTheLookback_WithDates()
+    {
+        await using var host = await StartAsync(arrange: SeedMarketAsync);
+        var data = await ToolDataAsync(host, "get_levels", new { ticker = "XLE", lookback = 10 });
+        var closes = (await ToolDataAsync(host, "get_bars", new { ticker = "XLE", days = 10 }))!["bars"]!.AsArray()
+            .Select(b => (Date: (string)b!["date"]!, Close: (decimal)b["close"]!)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((decimal)data!["swingLow"]!["price"]!, Is.EqualTo(closes.Min(c => c.Close)));
+            Assert.That((decimal)data["priorHigh"]!["price"]!, Is.EqualTo(closes.Max(c => c.Close)));
+            Assert.That((decimal)data["last"]!, Is.EqualTo(closes[^1].Close));
+            Assert.That((int)data["barsUsed"]!, Is.EqualTo(10));
+        });
+    }
+
+    [Test]
+    public async Task GetLevels_UnknownTicker_IsAnError()
+    {
+        await using var host = await StartAsync(arrange: SeedMarketAsync);
+        var rpc = await ToolAsync(host.CreateClient(), "get_levels", new { ticker = "NOPE" });
+        Assert.That(rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
     }
 
     [Test]
@@ -362,7 +387,7 @@ public class McpTests
         {
             ("get_dashboard", null), ("get_watchlist", null), ("get_instrument", new { ticker = "XLE" }), ("get_bars", new { ticker = "XLE" }),
             ("list_trades", null), ("get_trade", new { id = 1 }), ("size_position", new { entry = 62.82m, stop = 61.40m, target = 65.90m }),
-            ("get_settings", null), ("get_refresh_status", null), ("list_notes", null)
+            ("get_settings", null), ("get_refresh_status", null), ("list_notes", null), ("get_levels", new { ticker = "XLE" })
         };
         Assert.That(calls.Select(c => c.Tool), Is.EquivalentTo(ReadTools));
         foreach (var (tool, args) in calls)

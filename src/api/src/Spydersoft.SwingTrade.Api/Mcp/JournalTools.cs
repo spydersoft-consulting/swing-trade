@@ -91,6 +91,31 @@ public class JournalTools(
         return await envelope.WrapAsync(data, key, ct: ct);
     }
 
+    [McpServerTool(Name = "get_levels", ReadOnly = true, Idempotent = true, OpenWorld = false)]
+    [Description("Swing low and prior high for one ticker: the lowest and highest completed close in the lookback window, with their dates and the last close. Close-based (the app stores closes only). Use them as the stop and target candidates for size_position." + Notice)]
+    public async Task<string> GetLevels(
+        [Description("Ticker symbol.")] string ticker,
+        [Description("Number of most recent completed bars to scan (5 to 120, default 20).")] int lookback = SwingLevelCalculator.DefaultLookback,
+        CancellationToken ct = default)
+    {
+        var key = InstrumentService.Normalize(ticker);
+        var series = McpEnvelopeFactory.Unwrap(await bars.GetAsync(key, new BarsQuery { Days = MaxBars }, ct), $"Ticker {key}").Bars;
+        if (series.Count == 0)
+            throw new McpException($"No completed bars are available for {key}.");
+
+        var levels = SwingLevelCalculator.Calculate(series.Select(b => b.Close).ToList(), lookback);
+        var data = new
+        {
+            last = series[^1].Close,
+            lastDate = series[^1].Date,
+            levels.Lookback,
+            levels.BarsUsed,
+            swingLow = new { price = levels.SwingLow, date = series[levels.SwingLowIndex].Date },
+            priorHigh = new { price = levels.PriorHigh, date = series[levels.PriorHighIndex].Date }
+        };
+        return await envelope.WrapAsync(data, key, ct: ct);
+    }
+
     [McpServerTool(Name = "list_trades", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description("Trades with computed fields: position, risk, planned reward:risk, P&L, percent, R-multiple, days held, wash-sale flag. Newest first, at most 100 per call (a larger limit is clamped); totalCount says how many matched. from/to filter on the open date (yyyy-MM-dd)." + Notice)]
     public async Task<string> ListTrades(
