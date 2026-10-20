@@ -1,5 +1,5 @@
 import React from "react";
-import { InputText } from "primereact/inputtext";
+import { InputText } from "../ui/TextField";
 
 interface FieldShellProps {
   id: string;

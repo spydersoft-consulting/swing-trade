@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-d
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRotate } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "./ui/Button";
-import { ProgressSpinner } from "primereact/progressspinner";
+import { Spinner as SpinnerIcon } from "./ui/Spinner";
 import MainLayout from "../layouts/Main";
 import { Watchlist } from "./Watchlist/Watchlist";
 import { Trades } from "./Trades/Trades";
@@ -16,7 +16,7 @@ import { useAuth } from "../context";
 
 const Spinner = () => (
   <div className="flex justify-center py-16" role="status" aria-label="Loading">
-    <ProgressSpinner />
+    <SpinnerIcon />
   </div>
 );
 
