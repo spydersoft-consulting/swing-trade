@@ -16,6 +16,7 @@ export const MCP_READ_TOOLS = [
   "get_settings",
   "get_refresh_status",
   "list_notes",
+  "get_levels",
 ] as const;
 
 export interface RpcResponse {
