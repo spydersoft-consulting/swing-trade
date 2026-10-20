@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dialog } from "primereact/dialog";
+import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import type { TradeDto, TradeSetup, TradeStatus } from "../../api/generated/types.gen";
 import { SelectField, TextAreaField, TextField } from "../common/Fields";
@@ -146,13 +146,7 @@ const TradeForm: React.FC<{ trade: TradeDto | null; onHide: () => void }> = ({ t
   };
 
   return (
-    <Dialog
-      header={editing ? `Edit ${trade?.ticker}` : "New trade"}
-      visible
-      onHide={onHide}
-      style={{ width: "min(54rem, 96vw)" }}
-      modal
-    >
+    <Modal header={editing ? `Edit ${trade?.ticker}` : "New trade"} onClose={onHide} width="min(54rem, 96vw)">
       <form onSubmit={(e) => void submit(e)} noValidate>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
@@ -315,6 +309,6 @@ const TradeForm: React.FC<{ trade: TradeDto | null; onHide: () => void }> = ({ t
           <Button type="submit" label={editing ? "Save changes" : "Create trade"} loading={saving} />
         </div>
       </form>
-    </Dialog>
+    </Modal>
   );
 };

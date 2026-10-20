@@ -5,7 +5,8 @@ import { Column } from "primereact/column";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import { Button } from "../ui/Button";
-import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { confirmDialog } from "../ui/confirmDialogStore";
 import type { TradeDto, TradeStatus } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../common/QueryState";
@@ -85,7 +86,6 @@ export const Trades: React.FC = () => {
     confirmDialog({
       message: `Cancel the planned ${trade.ticker} order? The limit order is no longer working and the reserved cash is released.`,
       header: "Cancel planned trade",
-      icon: "pi pi-exclamation-triangle",
       acceptLabel: "Cancel the trade",
       rejectLabel: "Keep it",
       accept: async () => {
