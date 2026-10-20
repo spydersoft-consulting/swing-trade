@@ -30,6 +30,9 @@ pr:
   branches:
     include:
       - main
+      - feature/*
+      - fix/*
+      - chore/*
 
 # Composed from two stage templates (as in PitStop): the build/publish stages and the Playwright integration stage,
 # which runs after Build. Composition (not `extends`) is what lets one pipeline pull in both.
