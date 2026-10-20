@@ -57,6 +57,8 @@ POST /api/v1/apiresources/{id}/claims     { "type": "sub" }
 POST /api/v1/apiresources/{id}/claims     { "type": "role" }
 ```
 
+Claude's connector sends `resource=<MCP URL>` (RFC 8707), and Duende only accepts a resource indicator that names an API resource exactly. Add a second API resource named `https://swingtrade-mcp.<host>/mcp` (the `Mcp__PublicUrl`) with the same scope and claims. Its tokens carry that URL as `aud`, which the API accepts on `/mcp` only.
+
 Seeder equivalent (optional, not planned, D7). Add to `Spydersoft.Identity.DataSeeder/Seeding/Resources.cs`:
 
 ```csharp

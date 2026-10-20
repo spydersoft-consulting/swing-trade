@@ -502,6 +502,25 @@ public class McpTests
         Assert.That((await client.SendAsync(Rpc("tools/list", token: Token(expires: DateTime.UtcNow.AddMinutes(-1))))).StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
+    [Test]
+    public async Task ResourceIndicatorAudience_IsAcceptedOnMcp()
+    {
+        await using var host = await StartAsync();
+        var response = await host.CreateClient().SendAsync(Rpc("tools/list", token: Token(audience: McpTestHost.PublicUrl)));
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task ResourceIndicatorAudience_IsRejectedOnRest()
+    {
+        await using var host = await StartAsync();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/dashboard");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer",
+            Token(roles: [SwingTradeAuth.Roles.Mcp, SwingTradeAuth.Roles.Reader], audience: McpTestHost.PublicUrl));
+        var response = await host.CreateClient().SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
     [TestCase("")]
     [TestCase("swingtrade.reader")]
     [TestCase("swingtrade.admin")]
