@@ -1,8 +1,10 @@
 import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 interface KpiTileProps {
-  /** A primeicons class such as "pi-wallet". */
-  icon: string;
+  /** A FontAwesome icon definition. */
+  icon: IconDefinition;
   label: string;
   value: string;
   /** A second line under the value (a percentage, a limit, a caveat). */
@@ -20,7 +22,7 @@ export const KpiTile: React.FC<KpiTileProps> = ({ icon, label, value, detail, to
     data-testid={testId}
   >
     <span className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-brand-tint text-brand shrink-0">
-      <i className={`pi ${icon} text-base sm:text-lg`} aria-hidden="true" />
+      <FontAwesomeIcon icon={icon} className="text-base sm:text-lg" aria-hidden="true" />
     </span>
     <div className="min-w-0 flex-1">
       <p className="text-meta uppercase tracking-wide text-content-muted truncate">{label}</p>

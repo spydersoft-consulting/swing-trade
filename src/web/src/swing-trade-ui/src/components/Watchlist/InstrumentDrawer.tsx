@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar } from "primereact/sidebar";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalculator, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import type { BarsDto, WatchlistRowDto } from "../../api/generated/types.gen";
 import { swingTradeApi } from "../../api/swingTradeApi";
@@ -146,7 +148,7 @@ export const InstrumentDrawer: React.FC<Props> = ({ row, onHide }) => {
             <Button
               type="button"
               label="Plan a trade"
-              icon="pi pi-calculator"
+              icon={<FontAwesomeIcon icon={faCalculator} />}
               onClick={() => {
                 onHide();
                 navigate(planHref);
@@ -156,8 +158,8 @@ export const InstrumentDrawer: React.FC<Props> = ({ row, onHide }) => {
               <Button
                 type="button"
                 label="Deactivate ticker"
-                icon="pi pi-eye-slash"
-                outlined
+                icon={<FontAwesomeIcon icon={faEyeSlash} />}
+                variant="outlined"
                 severity="danger"
                 onClick={confirmDeactivate}
               />

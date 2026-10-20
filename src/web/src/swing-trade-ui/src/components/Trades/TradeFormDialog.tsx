@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
+import { Button } from "../ui/Button";
 import type { TradeDto, TradeSetup, TradeStatus } from "../../api/generated/types.gen";
 import { SelectField, TextAreaField, TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
@@ -286,8 +286,8 @@ const TradeForm: React.FC<{ trade: TradeDto | null; onHide: () => void }> = ({ t
                 {sizer.result && sizer.result.shares > 0 && (
                   <Button
                     type="button"
-                    size="small"
-                    outlined
+                    size="sm"
+                    variant="outlined"
                     className="mt-3"
                     label={`Use ${sizer.result.shares} shares`}
                     onClick={() => setShares(String(sizer.result?.shares ?? ""))}
@@ -311,7 +311,7 @@ const TradeForm: React.FC<{ trade: TradeDto | null; onHide: () => void }> = ({ t
           </p>
         )}
         <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" label="Cancel" outlined onClick={onHide} />
+          <Button type="button" label="Cancel" variant="outlined" onClick={onHide} />
           <Button type="submit" label={editing ? "Save changes" : "Create trade"} loading={saving} />
         </div>
       </form>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
+import { Button } from "../ui/Button";
 import type { TradeDto } from "../../api/generated/types.gen";
 import { TextAreaField, TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
@@ -81,7 +81,7 @@ const FillForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, on
           <InlineMessage severity="error">{formError}</InlineMessage>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" label="Cancel" outlined onClick={onHide} />
+          <Button type="button" label="Cancel" variant="outlined" onClick={onHide} />
           <Button type="submit" label="Mark as filled" loading={saving} />
         </div>
       </form>
@@ -169,7 +169,7 @@ const CloseForm: React.FC<{ trade: TradeDto; onHide: () => void }> = ({ trade, o
           <InlineMessage severity="error">{formError}</InlineMessage>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" label="Cancel" outlined onClick={onHide} />
+          <Button type="button" label="Cancel" variant="outlined" onClick={onHide} />
           <Button type="submit" label="Close trade" loading={saving} />
         </div>
       </form>

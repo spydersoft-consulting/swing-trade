@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import type { TradeDto, TradeStatus } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
@@ -105,24 +107,24 @@ export const Trades: React.FC = () => {
             <Button
               type="button"
               label="Fill"
-              size="small"
-              outlined
+              size="sm"
+              variant="outlined"
               aria-label={`Fill ${t.ticker}`}
               onClick={() => setFillTarget(t)}
             />
             <Button
               type="button"
               label="Edit"
-              size="small"
-              text
+              size="sm"
+              variant="text"
               aria-label={`Edit ${t.ticker}`}
               onClick={() => openForm(t)}
             />
             <Button
               type="button"
               label="Cancel"
-              size="small"
-              text
+              size="sm"
+              variant="text"
               severity="danger"
               aria-label={`Cancel ${t.ticker}`}
               onClick={() => askCancel(t)}
@@ -134,16 +136,16 @@ export const Trades: React.FC = () => {
             <Button
               type="button"
               label="Close"
-              size="small"
-              outlined
+              size="sm"
+              variant="outlined"
               aria-label={`Close ${t.ticker}`}
               onClick={() => setCloseTarget(t)}
             />
             <Button
               type="button"
               label="Edit"
-              size="small"
-              text
+              size="sm"
+              variant="text"
               aria-label={`Edit ${t.ticker}`}
               onClick={() => openForm(t)}
             />
@@ -153,8 +155,8 @@ export const Trades: React.FC = () => {
           <Button
             type="button"
             label="Edit"
-            size="small"
-            text
+            size="sm"
+            variant="text"
             aria-label={`Edit ${t.ticker}`}
             onClick={() => openForm(t)}
           />
@@ -168,7 +170,16 @@ export const Trades: React.FC = () => {
       <PageHeader
         title="Trades"
         subtitle="Position, risk and reward:risk are computed by the server from your settings."
-        actions={canWrite && <Button label="New trade" icon="pi pi-plus" size="small" onClick={() => openForm(null)} />}
+        actions={
+          canWrite && (
+            <Button
+              label="New trade"
+              icon={<FontAwesomeIcon icon={faPlus} />}
+              size="sm"
+              onClick={() => openForm(null)}
+            />
+          )
+        }
       />
 
       <div role="tablist" aria-label="Trade status" className="flex flex-wrap gap-1 border-b border-border">

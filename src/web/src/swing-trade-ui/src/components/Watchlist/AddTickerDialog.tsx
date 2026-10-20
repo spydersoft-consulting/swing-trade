@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Dialog } from "primereact/dialog";
-import { Button } from "primereact/button";
+import { Button } from "../ui/Button";
 import { TextField } from "../common/Fields";
 import { InlineMessage } from "../common/QueryState";
 import { useToast } from "../../context";
@@ -89,7 +89,7 @@ export const AddTickerDialog: React.FC<Props> = ({ visible, onHide }) => {
           <InlineMessage severity="error">{formError}</InlineMessage>
         )}
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" label="Cancel" outlined onClick={close} />
+          <Button type="button" label="Cancel" variant="outlined" onClick={close} />
           <Button type="submit" label="Add ticker" loading={saving} />
         </div>
       </form>

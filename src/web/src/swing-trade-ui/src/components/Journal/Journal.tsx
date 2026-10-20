@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import type { NoteKind } from "../../api/generated/types.gen";
 import { PageHeader } from "../layout/PageHeader";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "../common/QueryState";
@@ -58,12 +60,17 @@ export const Journal: React.FC = () => {
             <>
               <Button
                 label="Record a pass"
-                icon="pi pi-minus-circle"
-                size="small"
-                outlined
+                icon={<FontAwesomeIcon icon={faCircleMinus} />}
+                size="sm"
+                variant="outlined"
                 onClick={() => setDialogKind("Pass")}
               />
-              <Button label="Add note" icon="pi pi-plus" size="small" onClick={() => setDialogKind("General")} />
+              <Button
+                label="Add note"
+                icon={<FontAwesomeIcon icon={faPlus} />}
+                size="sm"
+                onClick={() => setDialogKind("General")}
+              />
             </>
           )
         }
@@ -110,7 +117,7 @@ export const Journal: React.FC = () => {
           </ol>
           <div className="flex items-center justify-between gap-2 mt-3">
             <p className="text-meta text-content-muted m-0">The checklist is kept in this browser only.</p>
-            <Button type="button" label="Reset week" size="small" text onClick={reset} />
+            <Button type="button" label="Reset week" size="sm" variant="text" onClick={reset} />
           </div>
         </section>
 

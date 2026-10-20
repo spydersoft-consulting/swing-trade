@@ -1,5 +1,7 @@
 import React from "react";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLock, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import { useAuth } from "../../context";
 import { useSetPageTitle } from "../../context/PageTitleContext";
 import { ROLE_DESCRIPTIONS, ROLE_NAMES } from "../../utils/roles";
@@ -13,7 +15,7 @@ export const AccessNotGranted: React.FC = () => {
     <div className="max-w-2xl mx-auto py-8" data-testid="access-not-granted">
       <div className="rounded-xl bg-surface border border-border p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <i className="pi pi-lock text-2xl text-bad" aria-hidden="true" />
+          <FontAwesomeIcon icon={faLock} className="text-2xl text-bad" aria-hidden="true" />
           <h1 className="text-xl font-semibold m-0">Access not granted</h1>
         </div>
         <p className="text-content-muted m-0">
@@ -32,7 +34,13 @@ export const AccessNotGranted: React.FC = () => {
         <p className="text-sm text-content-muted m-0">
           Most people need swingtrade.reader to look, or swingtrade.trader to log trades.
         </p>
-        <Button type="button" label="Sign out" icon="pi pi-sign-out" outlined onClick={logout} />
+        <Button
+          type="button"
+          label="Sign out"
+          icon={<FontAwesomeIcon icon={faRightFromBracket} />}
+          variant="outlined"
+          onClick={logout}
+        />
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import React from "react";
-import { Button } from "primereact/button";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChartLine, faRightToBracket } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "../ui/Button";
 import { useAuth } from "../../context";
 
 export const Landing: React.FC = () => {
@@ -10,7 +12,7 @@ export const Landing: React.FC = () => {
       <header className="bg-surface-inverse text-content-inverse">
         <div className="max-w-5xl mx-auto px-4 lg:px-8 h-16 flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-brand-fg">
-            <i className="pi pi-chart-line text-lg" aria-hidden="true" />
+            <FontAwesomeIcon icon={faChartLine} className="text-lg" aria-hidden="true" />
           </span>
           <span className="text-xl font-semibold">Swing Trade</span>
         </div>
@@ -22,7 +24,7 @@ export const Landing: React.FC = () => {
             Watchlist signals from fixed rules, a position sizer, your trades and a pass log. Every number comes from
             the server.
           </p>
-          <Button label="Sign in" icon="pi pi-sign-in" className="p-button-lg" onClick={login} />
+          <Button label="Sign in" icon={<FontAwesomeIcon icon={faRightToBracket} />} size="lg" onClick={login} />
         </div>
       </main>
     </div>

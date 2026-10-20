@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { faWallet } from "@fortawesome/free-solid-svg-icons";
 import { PrimeReactProvider } from "primereact/api";
 import { SignalPill, StaleBadge } from "./Badges";
 import { signalTone } from "./signalTone";
@@ -88,7 +89,7 @@ describe("query states", () => {
 
 describe("layout pieces", () => {
   it("KpiTile shows the label, value and detail", () => {
-    render(<KpiTile icon="pi-wallet" label="Account value" value="$2,053.55" detail="+2.7%" tone="good" testId="t" />);
+    render(<KpiTile icon={faWallet} label="Account value" value="$2,053.55" detail="+2.7%" tone="good" testId="t" />);
     expect(screen.getByTestId("t")).toHaveTextContent("Account value");
     expect(screen.getByText("$2,053.55").className).toContain("text-good");
     expect(screen.getByText("+2.7%")).toBeInTheDocument();
