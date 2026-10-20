@@ -74,10 +74,10 @@ public class TiingoMarketDataProviderTests
     }
 
     [Test]
-    public void UnknownTicker_IsTickerNotFound()
+    public async Task UnknownTicker_IsTickerNotFound()
     {
         var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
         var provider = new TiingoMarketDataProvider(new HttpClient(handler), Opts.Create());
-        Assert.ThrowsAsync<TickerNotFoundException>(() => provider.GetDailyBars("ZZZ", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
+        await Assert.ThrowsAsync<TickerNotFoundException>(() => provider.GetDailyBars("ZZZ", new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 2), default));
     }
 }

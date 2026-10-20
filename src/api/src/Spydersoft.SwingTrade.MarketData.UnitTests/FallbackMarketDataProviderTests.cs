@@ -91,9 +91,9 @@ public class FallbackMarketDataProviderTests
     }
 
     [Test]
-    public void AllProvidersFailing_ThrowsWithEachReason()
+    public async Task AllProvidersFailing_ThrowsWithEachReason()
     {
-        var ex = Assert.ThrowsAsync<AllProvidersFailedException>(() =>
+        var ex = await Assert.ThrowsAsync<AllProvidersFailedException>(() =>
             Create([Down("alpaca"), Down("tiingo")]).FetchAsync("SPY", D, D, null, default));
         Assert.That(ex!.Failures, Has.Count.EqualTo(2));
         Assert.That(ex.Message, Does.Contain("alpaca down").And.Contain("tiingo down"));
@@ -117,18 +117,18 @@ public class FallbackMarketDataProviderTests
     }
 
     [Test]
-    public void GivesUpAfterThreeAttempts()
+    public async Task GivesUpAfterThreeAttempts()
     {
         var alwaysDown = Down("alpaca", retryable: true);
-        Assert.ThrowsAsync<AllProvidersFailedException>(() => Create([alwaysDown]).FetchAsync("SPY", D, D, null, default));
+        await Assert.ThrowsAsync<AllProvidersFailedException>(() => Create([alwaysDown]).FetchAsync("SPY", D, D, null, default));
         Assert.That(alwaysDown.Calls, Is.EqualTo(3));
     }
 
     [Test]
-    public void NonRetryableFailureIsNotRetried()
+    public async Task NonRetryableFailureIsNotRetried()
     {
         var down = Down("alpaca", retryable: false);
-        Assert.ThrowsAsync<AllProvidersFailedException>(() => Create([down]).FetchAsync("SPY", D, D, null, default));
+        await Assert.ThrowsAsync<AllProvidersFailedException>(() => Create([down]).FetchAsync("SPY", D, D, null, default));
         Assert.That(down.Calls, Is.EqualTo(1));
     }
 
