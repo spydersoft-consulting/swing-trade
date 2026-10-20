@@ -11,20 +11,28 @@ public static class SwingTradeAuthorizationExtensions
     /// Registers the Read, Write, Admin and Mcp policies. Each requires an authenticated user, the swingtrade audience,
     /// a sub claim, and a role. Admin satisfies Write, Write satisfies Read. Mcp is independent of the REST roles.
     /// McpOwner is Mcp plus the configured owner subject; it guards the /mcp route and fails closed with no owner configured.
+    /// The Mcp policies also accept <c>Mcp:PublicUrl</c> as the audience (the RFC 8707 resource Claude requests); the REST policies do not.
     /// </summary>
     public static IServiceCollection AddSwingTradeAuthorization(this IServiceCollection services)
     {
         services.AddOptions();
         services.AddSingleton<IAuthorizationHandler, McpOwnerHandler>();
+        services.AddSingleton<IAuthorizationHandler, McpAudienceHandler>();
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .PostConfigure<IOptions<McpOptions>>((jwt, mcp) =>
+            {
+                if (mcp.Value.PublicUrl is { Length: > 0 } resource)
+                    jwt.TokenValidationParameters.ValidAudiences = [SwingTradeAuth.Audience, resource];
+            });
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationResultHandler>();
         return services.AddAuthorizationBuilder()
             .AddPolicy(SwingTradeAuth.Policies.Read, p => Build(p, SwingTradeAuth.Roles.Reader, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.Write, p => Build(p, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.Admin, p => Build(p, SwingTradeAuth.Roles.Admin))
-            .AddPolicy(SwingTradeAuth.Policies.Mcp, p => Build(p, SwingTradeAuth.Roles.Mcp))
+            .AddPolicy(SwingTradeAuth.Policies.Mcp, p => Build(p, mcpAudience: true, SwingTradeAuth.Roles.Mcp))
             .AddPolicy(SwingTradeAuth.Policies.McpOwner, p =>
             {
-                Build(p, SwingTradeAuth.Roles.Mcp);
+                Build(p, mcpAudience: true, SwingTradeAuth.Roles.Mcp);
                 p.AddRequirements(new McpOwnerRequirement());
             })
             .Services;
@@ -40,7 +48,7 @@ public static class SwingTradeAuthorizationExtensions
         options.TokenValidationParameters.RoleClaimType = SwingTradeAuth.RoleClaimType;
         options.TokenValidationParameters.NameClaimType = SwingTradeAuth.SubjectClaimType;
         options.TokenValidationParameters.ValidateAudience = true;
-        options.TokenValidationParameters.ValidAudience = SwingTradeAuth.Audience;
+        options.TokenValidationParameters.ValidAudiences = [SwingTradeAuth.Audience];
         options.Events = new JwtBearerEvents { OnChallenge = McpChallenge };
     }
 
@@ -60,11 +68,33 @@ public static class SwingTradeAuthorizationExtensions
         return Task.CompletedTask;
     }
 
-    private static void Build(AuthorizationPolicyBuilder policy, params string[] roles) =>
-        policy.RequireAuthenticatedUser()
-            .RequireAssertion(ctx => ctx.User.HasClaim(c => c.Type == SwingTradeAuth.AudienceClaimType && c.Value == SwingTradeAuth.Audience))
-            .RequireClaim(SwingTradeAuth.SubjectClaimType)
+    private static void Build(AuthorizationPolicyBuilder policy, params string[] roles) => Build(policy, false, roles);
+
+    private static void Build(AuthorizationPolicyBuilder policy, bool mcpAudience, params string[] roles)
+    {
+        policy.RequireAuthenticatedUser();
+        if (mcpAudience)
+            policy.AddRequirements(new McpAudienceRequirement());
+        else
+            policy.RequireAssertion(ctx => ctx.User.HasClaim(c => c.Type == SwingTradeAuth.AudienceClaimType && c.Value == SwingTradeAuth.Audience));
+        policy.RequireClaim(SwingTradeAuth.SubjectClaimType)
             .RequireAssertion(ctx => ctx.User.Claims.Any(c => c.Type == SwingTradeAuth.RoleClaimType && roles.Contains(c.Value)));
+    }
+}
+
+public sealed class McpAudienceRequirement : IAuthorizationRequirement;
+
+/// <summary>Allows the swingtrade audience or the configured MCP public URL.</summary>
+public sealed class McpAudienceHandler(IOptions<McpOptions> options) : AuthorizationHandler<McpAudienceRequirement>
+{
+    protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, McpAudienceRequirement requirement)
+    {
+        var resource = options.Value.PublicUrl;
+        if (context.User.HasClaim(c => c.Type == SwingTradeAuth.AudienceClaimType
+                && (c.Value == SwingTradeAuth.Audience || (!string.IsNullOrEmpty(resource) && c.Value == resource))))
+            context.Succeed(requirement);
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class McpOwnerRequirement : IAuthorizationRequirement;
