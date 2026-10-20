@@ -322,6 +322,74 @@ public class McpTests
         Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync(t => t.Status == TradeStatus.Planned)), Is.EqualTo(1));
     }
 
+    // ---------------------------------------------------------------------------------------------- watchlist management
+
+    private static readonly string[] WatchlistTools = ["add_instrument", "set_instrument_active"];
+    private static readonly Dictionary<string, string?> WatchlistOn = new() { ["Mcp:EnableWatchlistManagement"] = "true" };
+
+    [Test]
+    public async Task ToolsList_WatchlistFlagOn_AddsTheTwoToolsOnlyForCallersWhoAlsoHoldTrader()
+    {
+        await using var host = await StartAsync(WatchlistOn);
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpAndTrader)), Is.EquivalentTo(ReadTools.Concat(WatchlistTools)));
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpOnly)), Is.EquivalentTo(ReadTools));
+    }
+
+    [Test]
+    public async Task AddInstrument_AddsAnActiveTicker_AndRejectsADuplicate()
+    {
+        await using var host = await StartAsync(WatchlistOn);
+        var created = ToolPayload(await ToolAsync(host.CreateClient(), "add_instrument",
+            new { ticker = "tstx", name = "Test Fund", category = "Sector" }, Token(roles: McpAndTrader)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(created.GetProperty("ticker").GetString(), Is.EqualTo("TSTX"));
+            Assert.That(created.GetProperty("active").GetBoolean(), Is.True);
+        });
+
+        var again = await ToolAsync(host.CreateClient(), "add_instrument", new { ticker = "TSTX", name = "x" }, Token(roles: McpAndTrader));
+        Assert.That(again.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
+        Assert.That(await host.WithDbAsync(db => db.Instruments.CountAsync(i => i.Ticker == "TSTX")), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task SetInstrumentActive_TogglesActiveAndKeepsTheOtherFields()
+    {
+        await using var host = await StartAsync(WatchlistOn);
+        var before = await host.WithDbAsync(db => db.Instruments.AsNoTracking().SingleAsync(i => i.Ticker == "XLE"));
+        var updated = ToolPayload(await ToolAsync(host.CreateClient(), "set_instrument_active",
+            new { ticker = "xle", active = false }, Token(roles: McpAndTrader)));
+        Assert.That(updated.GetProperty("active").GetBoolean(), Is.False);
+
+        var after = await host.WithDbAsync(db => db.Instruments.AsNoTracking().SingleAsync(i => i.Ticker == "XLE"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(after.Active, Is.False);
+            Assert.That(after.Name, Is.EqualTo(before.Name));
+            Assert.That(after.Category, Is.EqualTo(before.Category));
+            Assert.That(after.IsBenchmark, Is.EqualTo(before.IsBenchmark));
+            Assert.That(after.WashSaleGroup, Is.EqualTo(before.WashSaleGroup));
+        });
+    }
+
+    [Test]
+    public async Task SetInstrumentActive_UnknownTicker_IsAnError()
+    {
+        await using var host = await StartAsync(WatchlistOn);
+        var rpc = await ToolAsync(host.CreateClient(), "set_instrument_active", new { ticker = "NOPE", active = false }, Token(roles: McpAndTrader));
+        Assert.That(rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
+    }
+
+    [Test]
+    public async Task WatchlistManagement_ForMcpOnlyRole_IsDeniedAndChangesNothing()
+    {
+        await using var host = await StartAsync(WatchlistOn);
+        var rpc = await CallAsync(host.CreateClient(), "tools/call",
+            new { name = "add_instrument", arguments = new { ticker = "TSTX", name = "x" } }, Token(roles: McpOnly));
+        Assert.That(rpc.TryGetProperty("error", out _) || rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True, rpc.ToString());
+        Assert.That(await host.WithDbAsync(db => db.Instruments.CountAsync(i => i.Ticker == "TSTX")), Is.Zero);
+    }
+
     // ---------------------------------------------------------------------------------------------- results equal REST
 
     [Test]

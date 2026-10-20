@@ -25,6 +25,9 @@ public sealed class McpOptions
     /// <summary>Registers fill_trade, close_trade and cancel_trade (which additionally need the swingtrade.trader role). Off by default.</summary>
     public bool EnableTradeLifecycle { get; set; }
 
+    /// <summary>Registers add_instrument and set_instrument_active (which additionally need the swingtrade.trader role). Off by default.</summary>
+    public bool EnableWatchlistManagement { get; set; }
+
     /// <summary>Host names the MCP routes answer to. Empty means the host of <see cref="PublicUrl"/>.</summary>
     public string[] AllowedHosts { get; set; } = [];
 

@@ -54,7 +54,7 @@ The caller must create a secret named **`web-secrets`** containing:
 | `OidcProxySettings__Oidc__ClientId`, `OidcProxySettings__Oidc__ClientSecret` | the BFF's confidential client |
 | `Redis__ConnectionString` | Redis for BFF sessions; without it sessions are in memory and die with the pod |
 
-Non-secret configuration (the caller supplies it as ConfigMaps): `Auth__Authority`, `Mcp__PublicUrl` (absolute https, ending in `/mcp`, on the dedicated MCP hostname; the metadata `resource` equals it exactly), `Mcp__AllowedHosts__0` (the MCP hostname), `Mcp__EnableAddNote`, `MarketData__Providers__0`/`__1` (`alpaca`, `tiingo`), `Telemetry__*`. Neither secret name is hardcoded here: both come from the caller's `envFrom.secretRef.name`.
+Non-secret configuration (the caller supplies it as ConfigMaps): `Auth__Authority`, `Mcp__PublicUrl` (absolute https, ending in `/mcp`, on the dedicated MCP hostname; the metadata `resource` equals it exactly), `Mcp__AllowedHosts__0` (the MCP hostname), `Mcp__EnableAddNote`, `Mcp__EnableJournalWrites`, `Mcp__EnableTradeLifecycle`, `Mcp__EnableWatchlistManagement`, `MarketData__Providers__0`/`__1` (`alpaca`, `tiingo`), `Telemetry__*`. Neither secret name is hardcoded here: both come from the caller's `envFrom.secretRef.name`.
 
 ## Rendering locally
 
