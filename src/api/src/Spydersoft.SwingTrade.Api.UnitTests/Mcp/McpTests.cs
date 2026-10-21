@@ -223,7 +223,7 @@ public class McpTests
     private static readonly string[] LifecycleTools = ["fill_trade", "close_trade", "cancel_trade"];
     private static readonly Dictionary<string, string?> LifecycleOn = new() { ["Mcp:EnableTradeLifecycle"] = "true" };
 
-    private static Task AddTradesAsync(SwingTradeDbContext db)
+    private static async Task AddTradesAsync(SwingTradeDbContext db)
     {
         db.Trades.AddRange(
             new Trade
@@ -236,7 +236,7 @@ public class McpTests
                 Ticker = "XLE", Status = TradeStatus.Open, Setup = TradeSetup.Pullback, OpenDate = Friday, Shares = 10, EntryPrice = 62.82m,
                 StopPrice = 61.40m, TargetPrice = 65.90m, CreatedAt = DateTimeOffset.UnixEpoch, UpdatedAt = DateTimeOffset.UnixEpoch
             });
-        return db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 
     private static async Task<(int Planned, int Open)> TradeIdsAsync(McpTestHost host) =>
