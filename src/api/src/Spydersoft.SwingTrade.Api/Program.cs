@@ -105,6 +105,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 app.UseSpydersoftRequestLogging();
 app.UseSwingTradeMcp();
 app.UseAuthentication();
+app.UseMiddleware<McpClaimsDiagnosticMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapSwingTradeMcp();
