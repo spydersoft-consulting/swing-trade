@@ -254,7 +254,7 @@ public class JournalWriteTools(NoteService notes, TradeService trades)
     public const string AddNoteToolName = "add_note";
 
     [McpServerTool(Name = AddNoteToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Appends one journal note (the only write tool). Needs the trader role as well as the MCP role. It never changes trades, settings or prices." + JournalTools.Notice)]
     public async Task<string> AddNote(
         [Description("Note date, yyyy-MM-dd.")] string date,

@@ -18,7 +18,7 @@ public class TradeLifecycleTools(TradeService trades, TimeProvider clock)
     public const string CancelTradeToolName = "cancel_trade";
 
     [McpServerTool(Name = FillTradeToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Marks a Planned trade as Open at the price the broker filled it. The fill price replaces the limit price. Only a Planned trade can be filled. Needs the trader role as well as the MCP role. It does not place an order." + JournalTools.Notice)]
     public async Task<string> FillTrade(
         [Description("Trade id.")] int id,
@@ -33,7 +33,7 @@ public class TradeLifecycleTools(TradeService trades, TimeProvider clock)
     }
 
     [McpServerTool(Name = CloseTradeToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Closes an Open trade at the price the broker sold it, recording the P&L inputs. Only an Open trade can be closed. Needs the trader role as well as the MCP role. It does not place an order." + JournalTools.Notice)]
     public async Task<string> CloseTrade(
         [Description("Trade id.")] int id,
@@ -51,7 +51,7 @@ public class TradeLifecycleTools(TradeService trades, TimeProvider clock)
     }
 
     [McpServerTool(Name = CancelTradeToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Cancels a Planned trade whose order did not fill. Only a Planned trade can be cancelled. Needs the trader role as well as the MCP role." + JournalTools.Notice)]
     public async Task<string> CancelTrade([Description("Trade id.")] int id, CancellationToken ct = default)
     {

@@ -21,7 +21,7 @@ public class JournalEntryTools(NoteService notes, TradeService trades, SizerServ
     public const string LogPlannedTradeToolName = "log_planned_trade";
 
     [McpServerTool(Name = RecordPassToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Records a pass in the journal: a note of kind Pass for a ticker you looked at and did not trade. Needs the trader role as well as the MCP role. It never changes trades, settings or prices." + JournalTools.Notice)]
     public async Task<string> RecordPass(
         [Description("Ticker symbol that was passed on.")] string ticker,
@@ -37,7 +37,7 @@ public class JournalEntryTools(NoteService notes, TradeService trades, SizerServ
     }
 
     [McpServerTool(Name = LogPlannedTradeToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Logs a Planned trade (a limit order the owner has placed or is about to place) with the share count the position sizer returns for this entry, stop and target. Refused, and nothing is saved, when the sizer verdict is not OK. Needs the trader role as well as the MCP role. It does not place an order." + JournalTools.Notice)]
     public async Task<string> LogPlannedTrade(
         [Description("Ticker symbol; must already be on the watchlist.")] string ticker,

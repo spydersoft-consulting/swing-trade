@@ -51,6 +51,25 @@ public class AuthorizationTests
         Assert.That(actual, Is.EqualTo((read, write, admin, mcp)));
     }
 
+    [TestCase("swingtrade.trader", SwingTradeAuth.Audience, true)]
+    [TestCase("swingtrade.admin", McpUrl, true)]
+    [TestCase("swingtrade.trader", McpUrl, true)]
+    [TestCase("swingtrade.reader", McpUrl, false)]
+    [TestCase("swingtrade.mcp", McpUrl, false)]
+    [TestCase("swingtrade.trader", "other", false)]
+    public async Task McpWrite_NeedsTraderOrAdmin_WithTheSwingtradeOrMcpAudience(string role, string aud, bool expected)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.Configure<Spydersoft.SwingTrade.Api.Mcp.McpOptions>(o => o.PublicUrl = McpUrl);
+        services.AddSwingTradeAuthorization();
+        await using var sp = services.BuildServiceProvider();
+        var result = await sp.GetRequiredService<IAuthorizationService>().AuthorizeAsync(User([role], aud), SwingTradeAuth.Policies.McpWrite);
+        Assert.That(result.Succeeded, Is.EqualTo(expected));
+    }
+
+    private const string McpUrl = "https://swingtrade-mcp.example.test/mcp";
+
     [TestCase(SwingTradeAuth.Policies.Read)]
     [TestCase(SwingTradeAuth.Policies.Write)]
     [TestCase(SwingTradeAuth.Policies.Admin)]
