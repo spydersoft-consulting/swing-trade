@@ -1,6 +1,6 @@
 namespace Spydersoft.SwingTrade.Api.Mcp;
 
-/// <summary>TEMPORARY: logs the roles and audience the /mcp caller's token carries. Never logs the token. Remove once the connector role question is settled.</summary>
+/// <summary>Logs at Debug the claims of the /mcp caller's token (never the token itself). Enable with <c>Logging__LogLevel__Spydersoft.SwingTrade.Api.Mcp.McpClaimsDiagnosticMiddleware=Debug</c>.</summary>
 public sealed class McpClaimsDiagnosticMiddleware(RequestDelegate next, ILogger<McpClaimsDiagnosticMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context)
@@ -8,7 +8,7 @@ public sealed class McpClaimsDiagnosticMiddleware(RequestDelegate next, ILogger<
         if (McpExtensions.IsMcpRoute(context) && context.User.Identity?.IsAuthenticated == true)
         {
             var user = context.User;
-            logger.LogInformation(
+            logger.LogDebug(
                 "MCP token claims: sub {Sub}, client {Client}, aud [{Aud}], roles [{Roles}], scope [{Scope}]",
                 user.FindFirst(SwingTradeAuth.SubjectClaimType)?.Value,
                 user.FindFirst("client_id")?.Value,
