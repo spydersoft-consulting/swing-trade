@@ -218,6 +218,110 @@ public class McpTests
         Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync()), Is.EqualTo(before));
     }
 
+    // ---------------------------------------------------------------------------------------------- trade lifecycle
+
+    private static readonly string[] LifecycleTools = ["fill_trade", "close_trade", "cancel_trade"];
+    private static readonly Dictionary<string, string?> LifecycleOn = new() { ["Mcp:EnableTradeLifecycle"] = "true" };
+
+    private static async Task AddTradesAsync(SwingTradeDbContext db)
+    {
+        db.Trades.AddRange(
+            new Trade
+            {
+                Ticker = "XLE", Status = TradeStatus.Planned, Setup = TradeSetup.Pullback, Shares = 10, EntryPrice = 62.82m, StopPrice = 61.40m,
+                TargetPrice = 65.90m, CreatedAt = DateTimeOffset.UnixEpoch, UpdatedAt = DateTimeOffset.UnixEpoch
+            },
+            new Trade
+            {
+                Ticker = "XLE", Status = TradeStatus.Open, Setup = TradeSetup.Pullback, OpenDate = Friday, Shares = 10, EntryPrice = 62.82m,
+                StopPrice = 61.40m, TargetPrice = 65.90m, CreatedAt = DateTimeOffset.UnixEpoch, UpdatedAt = DateTimeOffset.UnixEpoch
+            });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<(int Planned, int Open)> TradeIdsAsync(McpTestHost host) =>
+        (await host.WithDbAsync(db => db.Trades.Where(t => t.Status == TradeStatus.Planned).Select(t => t.Id).SingleAsync()),
+         await host.WithDbAsync(db => db.Trades.Where(t => t.Status == TradeStatus.Open && t.Shares == 10).Select(t => t.Id).SingleAsync()));
+
+    [Test]
+    public async Task ToolsList_TradeLifecycleFlagOn_AddsTheThreeToolsOnlyForCallersWhoAlsoHoldTrader()
+    {
+        await using var host = await StartAsync(LifecycleOn);
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpAndTrader)), Is.EquivalentTo(ReadTools.Concat(LifecycleTools)));
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpOnly)), Is.EquivalentTo(ReadTools));
+    }
+
+    [Test]
+    public async Task FillTrade_OpensAPlannedTrade_AtTheFillPrice()
+    {
+        await using var host = await StartAsync(LifecycleOn, async db => { await SeedMarketAsync(db); await AddTradesAsync(db); });
+        var (planned, _) = await TradeIdsAsync(host);
+        var trade = ToolPayload(await ToolAsync(host.CreateClient(), "fill_trade",
+            new { id = planned, fillPrice = 62.75m, fillDate = "2026-10-12" }, Token(roles: McpAndTrader)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trade.GetProperty("status").GetString(), Is.EqualTo("Open"));
+            Assert.That(trade.GetProperty("entryPrice").GetDecimal(), Is.EqualTo(62.75m));
+            Assert.That(trade.GetProperty("openDate").GetString(), Is.EqualTo("2026-10-12"));
+        });
+    }
+
+    [Test]
+    public async Task CloseTrade_ClosesAnOpenTrade_AndRecordsTheExit()
+    {
+        await using var host = await StartAsync(LifecycleOn, async db => { await SeedMarketAsync(db); await AddTradesAsync(db); });
+        var (_, open) = await TradeIdsAsync(host);
+        var trade = ToolPayload(await ToolAsync(host.CreateClient(), "close_trade",
+            new { id = open, exitPrice = 65.90m, exitDate = "2026-10-20", followedPlan = true, lessons = "Held to target." }, Token(roles: McpAndTrader)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trade.GetProperty("status").GetString(), Is.EqualTo("Closed"));
+            Assert.That(trade.GetProperty("exitPrice").GetDecimal(), Is.EqualTo(65.90m));
+            Assert.That(trade.GetProperty("followedPlan").GetBoolean(), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task CancelTrade_CancelsAPlannedTrade()
+    {
+        await using var host = await StartAsync(LifecycleOn, async db => { await SeedMarketAsync(db); await AddTradesAsync(db); });
+        var (planned, _) = await TradeIdsAsync(host);
+        var trade = ToolPayload(await ToolAsync(host.CreateClient(), "cancel_trade", new { id = planned }, Token(roles: McpAndTrader)));
+        Assert.That(trade.GetProperty("status").GetString(), Is.EqualTo("Cancelled"));
+    }
+
+    [Test]
+    public async Task Lifecycle_WrongStatus_IsAnErrorAndChangesNothing()
+    {
+        await using var host = await StartAsync(LifecycleOn, async db => { await SeedMarketAsync(db); await AddTradesAsync(db); });
+        var (planned, open) = await TradeIdsAsync(host);
+        var client = host.CreateClient();
+        foreach (var (tool, args) in new (string, object)[]
+                 {
+                     ("fill_trade", new { id = open, fillPrice = 62m }),
+                     ("close_trade", new { id = planned, exitPrice = 65m }),
+                     ("cancel_trade", new { id = open })
+                 })
+        {
+            var rpc = await ToolAsync(client, tool, args, Token(roles: McpAndTrader));
+            Assert.That(rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True, tool);
+        }
+
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync(t => t.Status == TradeStatus.Planned)), Is.EqualTo(1));
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync(t => t.Status == TradeStatus.Open && t.Shares == 10)), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Lifecycle_ForMcpOnlyRole_IsDeniedAndChangesNothing()
+    {
+        await using var host = await StartAsync(LifecycleOn, async db => { await SeedMarketAsync(db); await AddTradesAsync(db); });
+        var (planned, _) = await TradeIdsAsync(host);
+        var rpc = await CallAsync(host.CreateClient(), "tools/call",
+            new { name = "cancel_trade", arguments = new { id = planned } }, Token(roles: McpOnly));
+        Assert.That(rpc.TryGetProperty("error", out _) || rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True, rpc.ToString());
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync(t => t.Status == TradeStatus.Planned)), Is.EqualTo(1));
+    }
+
     // ---------------------------------------------------------------------------------------------- results equal REST
 
     [Test]

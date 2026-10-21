@@ -29,7 +29,7 @@ public class JournalEntryTools(NoteService notes, TradeService trades, SizerServ
         [Description("Date, yyyy-MM-dd. Defaults to today in New York.")] string? date = null,
         CancellationToken ct = default)
     {
-        var parsed = JournalTools.ParseDate(date, nameof(date)) ?? TodayInNewYork();
+        var parsed = JournalTools.ParseDate(date, nameof(date)) ?? JournalTools.TodayInNewYork(clock);
         var key = InstrumentService.Normalize(ticker);
         var created = McpEnvelopeFactory.Unwrap(
             await notes.CreateAsync(new CreateNoteRequest { Date = parsed, Kind = NoteKind.Pass, Text = reason, Ticker = key }, ct), "Note");
@@ -71,7 +71,4 @@ public class JournalEntryTools(NoteService notes, TradeService trades, SizerServ
             }, ct), "Trade");
         return System.Text.Json.JsonSerializer.Serialize(new { trade, sizing }, McpEnvelopeFactory.Json);
     }
-
-    private DateOnly TodayInNewYork() =>
-        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(BarCompletion.MarketTimeZoneId)).DateTime);
 }

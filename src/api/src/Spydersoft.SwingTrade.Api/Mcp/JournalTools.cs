@@ -231,6 +231,9 @@ public class JournalTools(
         return await envelope.WrapAsync(new { totalCount = all.Count, notes = all.Take(MaxNotes).ToList() }, ct: ct);
     }
 
+    internal static DateOnly TodayInNewYork(TimeProvider clock) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(BarCompletion.MarketTimeZoneId)).DateTime);
+
     internal static DateOnly? ParseDate(string? value, string name)
     {
         if (string.IsNullOrWhiteSpace(value))
