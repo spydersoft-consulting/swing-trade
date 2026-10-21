@@ -17,7 +17,7 @@ public class WatchlistManagementTools(InstrumentService instruments)
     public const string SetInstrumentActiveToolName = "set_instrument_active";
 
     [McpServerTool(Name = AddInstrumentToolName, ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Adds a ticker to the watchlist, active. It has no prices or signal until the next market-data refresh. Fails if the ticker already exists. Needs the trader role as well as the MCP role." + JournalTools.Notice)]
     public async Task<string> AddInstrument(
         [Description("Ticker symbol, for example XLE.")] string ticker,
@@ -31,7 +31,7 @@ public class WatchlistManagementTools(InstrumentService instruments)
     }
 
     [McpServerTool(Name = SetInstrumentActiveToolName, ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.Write)]
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = SwingTradeAuth.Policies.McpWrite)]
     [Description("Activates or deactivates a watchlist ticker without changing its name, category or wash-sale group. A deactivated ticker drops out of the default watchlist and the refresh. Needs the trader role as well as the MCP role." + JournalTools.Notice)]
     public async Task<string> SetInstrumentActive(
         [Description("Ticker symbol.")] string ticker,

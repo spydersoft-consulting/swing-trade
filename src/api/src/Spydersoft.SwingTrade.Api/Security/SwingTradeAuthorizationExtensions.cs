@@ -30,6 +30,7 @@ public static class SwingTradeAuthorizationExtensions
             .AddPolicy(SwingTradeAuth.Policies.Write, p => Build(p, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.Admin, p => Build(p, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.Mcp, p => Build(p, mcpAudience: true, SwingTradeAuth.Roles.Mcp))
+            .AddPolicy(SwingTradeAuth.Policies.McpWrite, p => Build(p, mcpAudience: true, SwingTradeAuth.Roles.Trader, SwingTradeAuth.Roles.Admin))
             .AddPolicy(SwingTradeAuth.Policies.McpOwner, p =>
             {
                 Build(p, mcpAudience: true, SwingTradeAuth.Roles.Mcp);
