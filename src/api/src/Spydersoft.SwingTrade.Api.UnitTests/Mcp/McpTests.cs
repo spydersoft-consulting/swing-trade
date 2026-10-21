@@ -143,6 +143,81 @@ public class McpTests
         Assert.That(await host.WithDbAsync(db => db.JournalNotes.CountAsync()), Is.Zero);
     }
 
+    // ---------------------------------------------------------------------------------------------- journal writes
+
+    private static readonly string[] JournalWriteTools = ["record_pass", "log_planned_trade"];
+
+    [Test]
+    public async Task ToolsList_JournalWritesFlagOn_AddsTheTwoToolsOnlyForCallersWhoAlsoHoldTrader()
+    {
+        await using var host = await StartAsync(new() { ["Mcp:EnableJournalWrites"] = "true" });
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpAndTrader)), Is.EquivalentTo(ReadTools.Concat(JournalWriteTools)));
+        Assert.That(await ListToolNamesAsync(host, Token(roles: McpOnly)), Is.EquivalentTo(ReadTools));
+    }
+
+    [Test]
+    public async Task RecordPass_WritesAPassNoteForTheTicker_DefaultingTheDate()
+    {
+        await using var host = await StartAsync(new() { ["Mcp:EnableJournalWrites"] = "true" }, SeedMarketAsync);
+        var note = ToolPayload(await ToolAsync(host.CreateClient(), "record_pass",
+            new { ticker = "xle", reason = "Extended, waiting." }, Token(roles: McpAndTrader)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(note.GetProperty("kind").GetString(), Is.EqualTo("Pass"));
+            Assert.That(note.GetProperty("ticker").GetString(), Is.EqualTo("XLE"));
+            Assert.That(note.GetProperty("date").GetString(), Is.Not.Empty);
+        });
+        Assert.That(await host.WithDbAsync(db => db.JournalNotes.CountAsync()), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task LogPlannedTrade_UsesTheSizerShares_AndSavesAPlannedTrade()
+    {
+        await using var host = await StartAsync(new() { ["Mcp:EnableJournalWrites"] = "true" }, SeedMarketAsync);
+        var before = await host.WithDbAsync(db => db.Trades.CountAsync());
+        var result = ToolPayload(await ToolAsync(host.CreateClient(), "log_planned_trade",
+            new { ticker = "XLE", entry = 62.82m, stop = 61.40m, target = 65.90m, rationale = "Pullback to MA20." }, Token(roles: McpAndTrader)));
+
+        var trade = result.GetProperty("trade");
+        Assert.Multiple(() =>
+        {
+            Assert.That(trade.GetProperty("status").GetString(), Is.EqualTo("Planned"));
+            Assert.That(trade.GetProperty("shares").GetInt32(), Is.EqualTo(result.GetProperty("sizing").GetProperty("shares").GetInt32()));
+            Assert.That(trade.GetProperty("shares").GetInt32(), Is.GreaterThan(0));
+        });
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync()), Is.EqualTo(before + 1));
+    }
+
+    [Test]
+    public async Task LogPlannedTrade_WhenTheSizerSaysSkip_SavesNothing()
+    {
+        await using var host = await StartAsync(new() { ["Mcp:EnableJournalWrites"] = "true" }, SeedMarketAsync);
+        var before = await host.WithDbAsync(db => db.Trades.CountAsync());
+        var rpc = await ToolAsync(host.CreateClient(), "log_planned_trade",
+            new { ticker = "XLE", entry = 62.82m, stop = 61.40m, target = 62.90m }, Token(roles: McpAndTrader));
+        Assert.That(rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True);
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync()), Is.EqualTo(before));
+    }
+
+    [Test]
+    public async Task JournalWrites_ForMcpOnlyRole_AreDeniedAndWriteNothing()
+    {
+        await using var host = await StartAsync(new() { ["Mcp:EnableJournalWrites"] = "true" }, SeedMarketAsync);
+        var before = await host.WithDbAsync(db => db.Trades.CountAsync());
+        foreach (var (tool, args) in new (string, object)[]
+                 {
+                     ("record_pass", new { ticker = "XLE", reason = "x" }),
+                     ("log_planned_trade", new { ticker = "XLE", entry = 62.82m, stop = 61.40m, target = 65.90m })
+                 })
+        {
+            var rpc = await CallAsync(host.CreateClient(), "tools/call", new { name = tool, arguments = args }, Token(roles: McpOnly));
+            Assert.That(rpc.TryGetProperty("error", out _) || rpc.GetProperty("result").GetProperty("isError").GetBoolean(), Is.True, rpc.ToString());
+        }
+
+        Assert.That(await host.WithDbAsync(db => db.JournalNotes.CountAsync()), Is.Zero);
+        Assert.That(await host.WithDbAsync(db => db.Trades.CountAsync()), Is.EqualTo(before));
+    }
+
     // ---------------------------------------------------------------------------------------------- results equal REST
 
     [Test]
