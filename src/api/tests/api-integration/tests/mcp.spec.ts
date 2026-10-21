@@ -47,6 +47,7 @@ test("every tool result carries asOf, dataStatus and the settings snapshot", asy
     ["get_settings", {}],
     ["get_refresh_status", {}],
     ["list_notes", {}],
+    ["get_levels", { ticker: "SPY" }],
   ];
   expect(calls.map(([name]) => name).sort()).toEqual([...MCP_READ_TOOLS].sort());
 
